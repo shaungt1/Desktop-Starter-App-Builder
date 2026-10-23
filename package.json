@@ -1,6 +1,6 @@
 {
   "name": "desktop-starter-app-builder",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "Reusable generator that fills an empty folder with a production-ready Electron or Tauri desktop application, driven by scripts or an AI agent.",
   "license": "MIT",
