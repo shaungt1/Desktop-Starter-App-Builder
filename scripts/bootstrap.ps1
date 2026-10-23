@@ -12,7 +12,7 @@ Purpose
   Works in Windows PowerShell 5.1 and PowerShell 7.
 
 Usage (from the repository root)
-  powershell -ExecutionPolicy Bypass -File scripts\bootstrap.ps1 [--base electron|tauri|all]
+  powershell -ExecutionPolicy Bypass -File scripts\bootstrap.ps1 [--base electron|tauri|extension|all]
              [--mobile] [--e2e] [--yes] [--dry-run] [--help]
 
   --base      Which app base to prepare for (default: all).
@@ -48,6 +48,7 @@ if (Test-Path $PlanFile) {
   $PlanText = Get-Content -Raw $PlanFile
   if ($PlanText -match '"base": "tauri"') { $Base = 'tauri' }
   if ($PlanText -match '"base": "electron"') { $Base = 'electron' }
+  if ($PlanText -match '"base": "extension"') { $Base = 'extension' }
   # Only the "targets" array decides mobile ("uiTheme": "ios" is a look, not a target).
   if (($PlanText -replace '\s', '') -match '"targets":\[[^\]]*"(android|ios)"') { $Mobile = $true }
   if ($PlanText -match '"packageManager": "npm"') { $PackageManager = 'npm' }
@@ -66,7 +67,7 @@ while ($i -lt $args.Count) {
   $a = [string]$args[$i]
   switch -Regex ($a) {
     '^--?base$' {
-      if ($i + 1 -ge $args.Count) { Write-Host 'error: --base needs a value (electron, tauri or all)'; exit 2 }
+      if ($i + 1 -ge $args.Count) { Write-Host 'error: --base needs a value (electron, tauri, extension or all)'; exit 2 }
       $Base = [string]$args[$i + 1]; $i += 2; break
     }
     '^--?base=' { $Base = $a.Substring($a.IndexOf('=') + 1); $i += 1; break }
@@ -78,12 +79,13 @@ while ($i -lt $args.Count) {
     default { Write-Host "error: unknown argument '$a' (see --help)"; exit 2 }
   }
 }
-if (@('electron', 'tauri', 'all') -notcontains $Base) {
-  Write-Host 'error: --base must be electron, tauri or all'
+if (@('electron', 'tauri', 'extension', 'all') -notcontains $Base) {
+  Write-Host 'error: --base must be electron, tauri, extension or all'
   exit 2
 }
 function Want-Electron { return ($Base -eq 'electron' -or $Base -eq 'all') }
 function Want-Tauri { return ($Base -eq 'tauri' -or $Base -eq 'all') }
+function Want-Extension { return ($Base -eq 'extension' -or $Base -eq 'all') }
 
 # --- Helpers -----------------------------------------------------------------
 
@@ -330,19 +332,54 @@ function Check-E2E {
     Add-Row 'tauri-driver' $null 'cargo install tauri-driver --locked'
     Add-NativeStep 'Install tauri-driver' 'cargo' @('install', 'tauri-driver', '--locked')
   }
-  if (Test-Command 'msedgedriver') {
-    Add-Row 'msedgedriver.exe' 'on PATH' 'ok (must match the Edge version)'
+  # Tauri end-to-end tests need an msedgedriver whose major version equals Microsoft Edge's.
+  $edge = Get-EdgeVersion
+  $driver = Get-ToolVersion 'msedgedriver' @('--version')
+  if (-not $edge) {
+    Add-Row 'msedgedriver.exe' $driver 'manual'
+    Add-Manual 'Microsoft Edge was not found, so the matching msedgedriver.exe cannot be chosen. Install Edge, then run this script again.'
+  } elseif ($driver -and ($driver.Split('.')[0] -eq $edge.Split('.')[0])) {
+    Add-Row "msedgedriver.exe (Edge $edge)" $driver 'ok'
   } else {
-    Add-Row 'msedgedriver.exe' $null 'manual'
-    Add-Manual ('Tauri end-to-end tests need msedgedriver.exe matching your Edge version on PATH. The Tauri docs ' +
-      'download it with: cargo install --git https://github.com/chippers/msedgedriver-tool ; then ' +
-      '& "$HOME\.cargo\bin\msedgedriver-tool.exe" ; put the downloaded msedgedriver.exe in a folder on PATH.')
+    Add-Row "msedgedriver.exe (Edge $edge)" $driver "download msedgedriver $edge"
+    Add-Step "Download msedgedriver $edge into ~\.cargo\bin" `
+      "download https://msedgedriver.microsoft.com/$edge/edgedriver_win64.zip and extract msedgedriver.exe into ~\.cargo\bin" `
+      'edgedriver' $edge @()
   }
+}
+
+# The installed Microsoft Edge version (product version of msedge.exe), or $null.
+function Get-EdgeVersion {
+  foreach ($root in @(${env:ProgramFiles(x86)}, $env:ProgramFiles)) {
+    if (-not $root) { continue }
+    $exe = Join-Path $root 'Microsoft\Edge\Application\msedge.exe'
+    if (Test-Path $exe) { return (Get-Item $exe).VersionInfo.ProductVersion }
+  }
+  return $null
+}
+
+# Downloads the msedgedriver that matches the given Edge version from Microsoft into ~\.cargo\bin.
+function Install-EdgeDriver([string]$Version, [string]$Bin = (Join-Path $HOME '.cargo\bin')) {
+  $bin = $Bin
+  New-Item -ItemType Directory -Force -Path $bin | Out-Null
+  $zip = Join-Path ([IO.Path]::GetTempPath()) "edgedriver-$Version.zip"
+  Invoke-WebRequest -UseBasicParsing -Uri "https://msedgedriver.microsoft.com/$Version/edgedriver_win64.zip" -OutFile $zip
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  $archive = [IO.Compression.ZipFile]::OpenRead($zip)
+  try {
+    $entry = $archive.Entries | Where-Object { $_.Name -eq 'msedgedriver.exe' } | Select-Object -First 1
+    if (-not $entry) { throw 'msedgedriver.exe was not found in the downloaded archive.' }
+    [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, (Join-Path $bin 'msedgedriver.exe'), $true)
+  } finally {
+    $archive.Dispose()
+    Remove-Item $zip -Force -ErrorAction SilentlyContinue
+  }
+  Write-Host ("msedgedriver {0} installed in {1}" -f $Version, $bin)
 }
 
 Check-Git
 # Apps generated for npm run their scripts with Node.js instead of Bun.
-if ($PackageManager -eq 'npm') { Check-Node } else { Check-Bun; if (Want-Electron) { Check-Node } }
+if ($PackageManager -eq 'npm') { Check-Node } else { Check-Bun; if ((Want-Electron) -or (Want-Extension)) { Check-Node } }
 if (Want-Tauri) {
   Check-BuildTools
   Check-WebView2
@@ -353,7 +390,7 @@ if ($Mobile) {
     Check-Android
     Add-Manual 'iOS apps can only be built on macOS; run scripts/bootstrap.sh --mobile on a Mac for iOS tooling.'
   } else {
-    Write-Warning '--mobile applies to Tauri only; ignored for --base electron.'
+    Write-Warning ('--mobile applies to Tauri only; ignored for --base ' + $Base + '.')
   }
 }
 if ($E2E) { Check-E2E }
@@ -436,11 +473,11 @@ function Invoke-Doctor {
   if (-not (Test-Command 'bun')) {
     Write-Host ''
     Write-Host 'Bun is not on PATH yet, so the doctor check was skipped. Open a new terminal and run:'
-    Write-Host '  .\start.ps1 doctor --base tauri   (or --base electron)'
+    Write-Host '  .\start.ps1 doctor --base tauri   (or --base electron, or --base extension)'
     return
   }
   $bases = @($Base)
-  if ($Base -eq 'all') { $bases = @('electron', 'tauri') }
+  if ($Base -eq 'all') { $bases = @('electron', 'tauri', 'extension') }
   foreach ($b in $bases) {
     Write-Host ''
     Write-Host "Running: bun cli/main.ts doctor --base $b"
@@ -480,6 +517,8 @@ foreach ($s in $Steps) {
   Write-Host "==> $($s.Description)"
   if ($s.Kind -eq 'winget') {
     Invoke-Winget $s.Target ($s.Arguments | Select-Object -First 1)
+  } elseif ($s.Kind -eq 'edgedriver') {
+    Install-EdgeDriver $s.Target
   } else {
     Invoke-Native $s.Target $s.Arguments
   }
