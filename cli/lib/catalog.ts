@@ -9,8 +9,8 @@ import fs from "node:fs";
 import { UserError } from "./log.ts";
 import { CATALOG_FILE } from "./paths.ts";
 
-export type BaseId = "electron" | "tauri";
-export const BASE_IDS: readonly BaseId[] = ["electron", "tauri"];
+export type BaseId = "electron" | "tauri" | "extension";
+export const BASE_IDS: readonly BaseId[] = ["electron", "tauri", "extension"];
 
 export interface ProfileDefinition {
   title: string;
@@ -27,18 +27,22 @@ export interface BaseDefinition {
   chooseWhen: string[];
   avoidWhen: string[];
   template: string;
-  /** Where the shared React interface (shared/renderer) is copied inside a generated app. */
-  rendererDir: string;
+  /** Where the shared desktop React interface (shared/renderer) is copied inside a generated app; absent when the base ships its own interface. */
+  rendererDir?: string;
+  /** Frontends the base supports (ids of the catalog's `frontends`); all when absent. */
+  frontends?: string[];
+  /** Interface kits the base supports (ids of the catalog's `uiKits`); all when absent. */
+  uiKits?: string[];
   defaultProfile: string;
   profiles: Record<string, ProfileDefinition>;
-  /** Platforms this base can build for. Tauri adds "android" and "ios" to "desktop". */
+  /** Platforms this base can build for. The first is always built; Tauri may add "android" and "ios" to "desktop". */
   targets: TargetId[];
   /** Builder files and folders copied into every app of this base (docs, setup scripts), so the app is self-contained. */
   bundledFiles: Array<{ from: string; to: string }>;
 }
 
-export type TargetId = "desktop" | "android" | "ios";
-export const TARGET_IDS: readonly TargetId[] = ["desktop", "android", "ios"];
+export type TargetId = "desktop" | "android" | "ios" | "browser";
+export const TARGET_IDS: readonly TargetId[] = ["desktop", "android", "ios", "browser"];
 
 /** A folder copied into the app: "root" is the app folder, "renderer" is the base's rendererDir. */
 export interface OverlaySpec {
@@ -120,6 +124,12 @@ export interface ModuleImplementation {
   commands?: string[];
   /** Tauri: true when the module also builds and runs on Android and iOS. */
   mobile?: boolean;
+  /** Extension: browser permissions the module needs, merged into the manifest (src/permissions.generated.json). */
+  permissions?: string[];
+  /** Extension: host permissions (match patterns) the module needs. */
+  hostPermissions?: string[];
+  /** Extension: the module folder exports `backgroundModule` from src/modules/<id>/background.ts. */
+  backgroundModule?: boolean;
 }
 
 export interface ModuleOption {

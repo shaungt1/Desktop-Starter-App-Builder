@@ -13,17 +13,20 @@ The table below summarizes availability; each module is then described in full. 
 "yes, mobile" means the module also builds for the Android and iOS targets; plans with those targets
 accept only such modules.
 
-| Module | Electron | Tauri 2 | Requires |
-| --- | --- | --- | --- |
-| `database` | yes | yes, mobile | — |
-| `secure-storage` | yes | yes | — |
-| `auth-oidc` | yes | yes | secure-storage |
-| `auto-update` | yes | yes | — |
-| `filesystem` | yes | yes | — |
-| `background` | yes | yes | — |
-| `crash-reporting` | yes | — | — |
-| `database-prisma` | manual | — | — |
-| `peer-to-peer` | manual | manual | — |
+| Module | Electron | Tauri 2 | Browser extension (WXT) | Requires |
+| --- | --- | --- | --- | --- |
+| `database` | yes | yes, mobile | — | — |
+| `secure-storage` | yes | yes | — | — |
+| `auth-oidc` | yes | yes | — | secure-storage |
+| `auto-update` | yes | yes | — | — |
+| `filesystem` | yes | yes | — | — |
+| `background` | yes | yes | — | — |
+| `crash-reporting` | yes | — | — | — |
+| `side-panel` | — | — | yes | — |
+| `context-menu` | — | — | yes | — |
+| `content-ui` | — | — | yes | — |
+| `database-prisma` | manual | — | — | — |
+| `peer-to-peer` | manual | manual | — | — |
 
 Each section below lists what the module does, the packages it adds per base, its plan options and the steps a person must complete outside the code.
 
@@ -110,6 +113,24 @@ Plan options, under `moduleOptions["crash-reporting"]`:
 Steps outside the code:
 
 1. Upload source maps for readable stack traces (Sentry's Vite plugin) when you set up release builds.
+
+## Side panel (`side-panel`)
+
+A React panel that opens beside the web page from the toolbar icon (Chrome and Edge side panel API).
+
+- **Browser extension (WXT)** (`extension/modules/side-panel`): no extra npm packages; browser permissions: `sidePanel`.
+
+## Context menu (`context-menu`)
+
+A right-click menu item that sends the selected text to the extension and opens its result.
+
+- **Browser extension (WXT)** (`extension/modules/context-menu`): no extra npm packages; browser permissions: `contextMenus`.
+
+## Page overlay (content UI) (`content-ui`)
+
+A React panel injected into matching web pages inside a shadow root, so the page's styles cannot break it and its styles cannot leak out.
+
+- **Browser extension (WXT)** (`extension/modules/content-ui`): no extra npm packages.
 
 ## Prisma ORM instead of the built-in SQLite layer (`database-prisma`)
 

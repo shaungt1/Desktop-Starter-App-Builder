@@ -29,7 +29,7 @@ Discover
   list                                   Bases, renderer profiles and how to choose
   module list [--base B] | show ID       Optional modules and what each installs
 
-Plan (plan flags: --name N --base electron|tauri --profile P --frontend vite|nextjs
+Plan (plan flags: --name N --base electron|tauri|extension --profile P --frontend vite|nextjs
        --ui shadcn|konsta --ui-theme ios|material --package-manager bun|npm
        --targets desktop,android,ios --modules a,b --app-id ID --remote-url URL
        --option module.option=value, repeatable, for module options such as auth-oidc.issuer)
@@ -45,7 +45,7 @@ Generate and work on an app (TARGET is a full or relative path outside this repo
   verify TARGET                          Type check, lint, unit tests (+ Rust checks for Tauri)
   run TARGET [dev|test|e2e]              Start development mode or run tests
   module add ID TARGET [--option k=v]    Add one module to a generated app, then install and verify
-  release TARGET [--publish] [--yes]     Verify, then build installers (publish needs approval)
+  release TARGET [--publish] [--yes]     Verify, then build installers or store ZIPs (publish needs approval)
 
 Maintain the builder
   upstream check | fetch                 Compare or fetch the pinned upstream sources

@@ -13,8 +13,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "test": "bun test tests/unit",
-    "test:generate": "bun test tests/generation --timeout 3600000",
+    "test": "bun test ./tests/unit",
+    "test:generate": "bun test ./tests/generation --timeout 3600000",
     "verify": "bun run typecheck && bun run lint && bun run test",
     "docs:modules": "bun scripts/generate-module-docs.ts"
   },

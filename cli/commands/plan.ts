@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { loadCatalog } from "../lib/catalog.ts";
+import { type BaseId, loadCatalog } from "../lib/catalog.ts";
 import { writeJson } from "../lib/files.ts";
 import { heading, info, success, UserError } from "../lib/log.ts";
 import { normalizePlan, readPlan } from "../lib/plan.ts";
@@ -83,10 +83,11 @@ export function collectPlan(values: PlanFlagValues): Record<string, unknown> {
   }
   const slug = values.slug ?? ask("Slug (folder/package name)", slugify(name));
   const appId = values["app-id"] ?? ask("Application id (reverse DNS)", `com.example.${slug.replaceAll("-", "")}`);
-  const base = values.base ?? ask("Base (electron or tauri)", "electron");
-  const baseDefinition = catalog.bases[base as "electron" | "tauri"];
+  const baseIds = Object.keys(catalog.bases);
+  const base = values.base ?? ask(`Base (${baseIds.join(", ")})`, "electron");
+  const baseDefinition = catalog.bases[base as BaseId];
   if (!baseDefinition) {
-    throw new UserError("base must be electron or tauri", 2);
+    throw new UserError(`base must be one of: ${baseIds.join(", ")}`, 2);
   }
   const profile =
     values.profile ??
@@ -95,7 +96,8 @@ export function collectPlan(values: PlanFlagValues): Record<string, unknown> {
   const frontend =
     values.frontend ??
     (profile === "native" ? ask(`Frontend (${Object.keys(catalog.frontends).join(", ")})`, "vite") : "vite");
-  const ui = values.ui ?? ask(`Interface kit (${Object.keys(catalog.uiKits).join(", ")})`, "shadcn");
+  const ui =
+    values.ui ?? ask(`Interface kit (${(baseDefinition.uiKits ?? Object.keys(catalog.uiKits)).join(", ")})`, "shadcn");
   const themes = catalog.uiKits[ui]?.themes;
   const uiTheme = themes
     ? (values["ui-theme"] ?? ask(`Konsta look (${themes.join(", ")})`, themes[0] ?? ""))
@@ -105,11 +107,11 @@ export function collectPlan(values: PlanFlagValues): Record<string, unknown> {
   const targets = list(
     values.targets ??
       (baseDefinition.targets.length > 1
-        ? ask(`Targets (${baseDefinition.targets.join(", ")})`, "desktop")
-        : "desktop"),
+        ? ask(`Targets (${baseDefinition.targets.join(", ")})`, baseDefinition.targets[0] ?? "desktop")
+        : (baseDefinition.targets[0] ?? "desktop")),
   );
   const available = catalog.modules
-    .filter((module) => module.implementations[base as "electron" | "tauri"])
+    .filter((module) => module.implementations[base as BaseId])
     .map((module) => module.id);
   const modules = list(values.modules ?? ask(`Modules, comma separated (${available.join(", ")})`, ""));
 
@@ -140,7 +142,7 @@ async function newPlan(argv: string[]): Promise<void> {
     options: { ...PLAN_FLAGS, out: { type: "string" }, force: { type: "boolean", default: false } },
   });
   if (!values.out) {
-    throw new UserError("Usage: plan new --out FILE [--name N --base electron|tauri --modules a,b ...]", 2);
+    throw new UserError("Usage: plan new --out FILE [--name N --base electron|tauri|extension --modules a,b ...]", 2);
   }
   const out = path.resolve(values.out);
   if (fs.existsSync(out) && !values.force) {
