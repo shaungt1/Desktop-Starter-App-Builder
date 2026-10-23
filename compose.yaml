@@ -1,0 +1,28 @@
+# Container workflow for generating, testing and packaging apps on Linux.
+#
+#   docker compose build
+#   docker compose run --rm builder bash start.sh doctor --base tauri
+#   docker compose run --rm builder bash start.sh create /work/acme-notes \
+#     --plan plans/examples/electron-native.json --install --verify
+#   docker compose run --rm builder bash -c "cd /work/acme-notes && bun run test:e2e && bun run make"
+#
+# Generated apps appear in ./generated on the host (ignored by Git).
+services:
+  builder:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: desktop-starter-app-builder:latest
+    working_dir: /builder
+    volumes:
+      - ./generated:/work
+      - cargo-registry:/usr/local/cargo/registry
+      - electron-cache:/root/.cache/electron
+      - bun-cache:/root/.bun/install/cache
+    # Chromium needs more shared memory than Docker's 64 MB default.
+    shm_size: "1gb"
+
+volumes:
+  cargo-registry:
+  electron-cache:
+  bun-cache:

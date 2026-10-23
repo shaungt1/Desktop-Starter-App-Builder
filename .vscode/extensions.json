@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "biomejs.biome",
+    "rust-lang.rust-analyzer",
+    "tauri-apps.tauri-vscode",
+    "ms-playwright.playwright",
+    "vitest.explorer",
+    "bradlc.vscode-tailwindcss"
+  ]
+}

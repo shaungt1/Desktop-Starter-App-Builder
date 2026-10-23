@@ -1,0 +1,10 @@
+{
+  "name": "Acme Offline",
+  "slug": "acme-offline",
+  "appId": "com.acme.offline",
+  "description": "A static web export bundled for offline use.",
+  "author": "Acme Inc.",
+  "base": "electron",
+  "profile": "exported",
+  "modules": []
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "database",
+  "description": "Lets the main window open the app database, read (sql:default) and write (sql:allow-execute).",
+  "windows": ["main"],
+  "permissions": ["sql:default", "sql:allow-execute"]
+}

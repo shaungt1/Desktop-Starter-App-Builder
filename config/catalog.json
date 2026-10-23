@@ -1,0 +1,635 @@
+{
+  "schemaVersion": 1,
+  "bases": {
+    "electron": {
+      "title": "Electron",
+      "summary": "Bundles Chromium and Node.js with the app. Backend code is TypeScript running on Node, so any npm package works. Built with Electron Forge and Vite.",
+      "chooseWhen": [
+        "The app needs Node libraries, native Node modules, a background process, a local database or peer-to-peer networking",
+        "The interface must render identically on every operating system",
+        "The team works in TypeScript end to end and does not want a Rust backend"
+      ],
+      "avoidWhen": [
+        "Installer size or memory use is a stated requirement (expect roughly a 100 MB floor)",
+        "The same codebase must also ship to iOS or Android"
+      ],
+      "template": "electron/template",
+      "rendererDir": "src/renderer",
+      "defaultProfile": "native",
+      "profiles": {
+        "native": {
+          "title": "Native interface",
+          "summary": "The window shows the bundled React + Vite interface. Works offline. Use when there is no hosted web app to reuse."
+        },
+        "remote": {
+          "title": "Hosted web app",
+          "summary": "The window loads a web app you already host (for example Next.js with its server features). Needs a network connection.",
+          "overlay": "electron/profiles/remote",
+          "requiresPlanFields": ["remoteUrl"]
+        },
+        "exported": {
+          "title": "Bundled static export",
+          "summary": "Ships a static web build (for example `next build` with output: 'export') inside the app and serves it from a private app:// scheme. Works offline; server features are lost.",
+          "overlay": "electron/profiles/exported"
+        }
+      },
+      "targets": ["desktop"],
+      "bundledFiles": [
+        {
+          "from": "electron/docs/reference",
+          "to": "docs/electron"
+        },
+        {
+          "from": "electron/docs/AGENT_REFERENCE.md",
+          "to": "docs/electron/AGENT_REFERENCE.md"
+        },
+        {
+          "from": "docs/UI_KITS.md",
+          "to": "docs/UI_KITS.md"
+        },
+        {
+          "from": "docs/SETUP_RESOURCES.md",
+          "to": "docs/SETUP_RESOURCES.md"
+        },
+        {
+          "from": "scripts/bootstrap.sh",
+          "to": "scripts/bootstrap.sh"
+        },
+        {
+          "from": "scripts/bootstrap.ps1",
+          "to": "scripts/bootstrap.ps1"
+        },
+        {
+          "from": "shared/app-scripts/doctor.mjs",
+          "to": "scripts/doctor.mjs"
+        }
+      ]
+    },
+    "tauri": {
+      "title": "Tauri 2",
+      "summary": "Uses the operating system's own web view and a compiled Rust backend. Small installers and low memory; backend code is Rust and every capability must be granted explicitly.",
+      "chooseWhen": [
+        "The app is a thin client over a remote API or does most work in the interface",
+        "Installer size or memory use is a stated requirement",
+        "The team is willing to write backend logic in Rust, or iOS/Android from the same code is a real goal"
+      ],
+      "avoidWhen": [
+        "The backend must reuse Node libraries (they cannot run in Tauri without a sidecar process)",
+        "The interface depends on Chromium-only behavior (each OS renders with a different engine)"
+      ],
+      "template": "tauri/template",
+      "rendererDir": "src",
+      "defaultProfile": "native",
+      "profiles": {
+        "native": {
+          "title": "Native interface",
+          "summary": "The window shows the bundled React + Vite interface embedded in the binary. Works offline."
+        },
+        "remote": {
+          "title": "Hosted web app",
+          "summary": "The window loads a web app you already host. The hosted site gets no access to native commands unless its origin is granted in a capability file.",
+          "overlay": "tauri/profiles/remote",
+          "requiresPlanFields": ["remoteUrl"]
+        }
+      },
+      "targets": ["desktop", "android", "ios"],
+      "bundledFiles": [
+        {
+          "from": "tauri/docs/reference",
+          "to": "docs/tauri"
+        },
+        {
+          "from": "tauri/docs/AGENT_REFERENCE.md",
+          "to": "docs/tauri/AGENT_REFERENCE.md"
+        },
+        {
+          "from": "docs/UI_KITS.md",
+          "to": "docs/UI_KITS.md"
+        },
+        {
+          "from": "docs/SETUP_RESOURCES.md",
+          "to": "docs/SETUP_RESOURCES.md"
+        },
+        {
+          "from": "scripts/bootstrap.sh",
+          "to": "scripts/bootstrap.sh"
+        },
+        {
+          "from": "scripts/bootstrap.ps1",
+          "to": "scripts/bootstrap.ps1"
+        },
+        {
+          "from": "shared/app-scripts/doctor.mjs",
+          "to": "scripts/doctor.mjs"
+        }
+      ]
+    }
+  },
+  "modules": [
+    {
+      "id": "database",
+      "title": "Local database (SQLite)",
+      "category": "persistence",
+      "summary": "Structured app data in a SQLite file in the user-data folder, with ordered migrations and an example notes repository.",
+      "implementations": {
+        "electron": {
+          "overlay": "electron/modules/database",
+          "mainModule": true,
+          "rendererFeature": true
+        },
+        "tauri": {
+          "overlay": "tauri/modules/database",
+          "rendererFeature": true,
+          "rustModule": "database",
+          "dependencies": {
+            "@tauri-apps/plugin-sql": "^2.6.0"
+          },
+          "cargo": {
+            "tauri-plugin-sql": {
+              "version": "2",
+              "features": ["sqlite"]
+            }
+          },
+          "mobile": true
+        }
+      }
+    },
+    {
+      "id": "secure-storage",
+      "title": "Secure storage",
+      "category": "security",
+      "summary": "Encrypted storage for tokens and credentials using the operating system key store. The interface can save but never read back a secret.",
+      "implementations": {
+        "electron": {
+          "overlay": "electron/modules/secure-storage",
+          "mainModule": true
+        },
+        "tauri": {
+          "overlay": "tauri/modules/secure-storage",
+          "rustModule": "secure_storage",
+          "cargo": {
+            "keyring": {
+              "version": "4"
+            }
+          },
+          "commands": ["secret_status", "secret_has", "secret_set", "secret_delete"]
+        }
+      }
+    },
+    {
+      "id": "auth-oidc",
+      "title": "Sign-in (OpenID Connect + PKCE)",
+      "category": "identity",
+      "summary": "Sign-in through the system browser with PKCE; the provider redirects to <scheme>://auth/callback. Works with any OpenID Connect provider (Auth0, Okta, Entra ID, Keycloak, Cognito, Supabase, Google...).",
+      "requires": ["secure-storage"],
+      "options": {
+        "issuer": {
+          "description": "OpenID Connect issuer URL, e.g. https://your-tenant.us.auth0.com",
+          "required": true,
+          "example": "https://id.example.com"
+        },
+        "clientId": {
+          "description": "Client id of a public (native/SPA) application at the provider, with no client secret",
+          "required": true,
+          "example": "desktop-app"
+        },
+        "scopes": {
+          "description": "Space- or comma-separated scopes (default: openid profile email offline_access)",
+          "required": false
+        },
+        "audience": {
+          "description": "API audience, for providers that need one (Auth0)",
+          "required": false
+        }
+      },
+      "manualSteps": [
+        "At the identity provider, create a public/native application and add <scheme>://auth/callback as an allowed redirect URI (the scheme comes from the plan).",
+        "Linux: the deep link is registered when the .deb is installed; during development, test sign-in on Windows/macOS or with an installed build."
+      ],
+      "implementations": {
+        "electron": {
+          "overlay": "electron/modules/auth-oidc",
+          "mainModule": true,
+          "rendererFeature": true
+        },
+        "tauri": {
+          "overlay": "tauri/modules/auth-oidc",
+          "rendererFeature": true,
+          "rustModule": "auth_oidc",
+          "rustSetup": true,
+          "cargo": {
+            "reqwest": {
+              "version": "0.12",
+              "defaultFeatures": false,
+              "features": ["json", "rustls-tls", "charset", "http2"]
+            },
+            "sha2": {
+              "version": "0.10"
+            },
+            "base64": {
+              "version": "0.22"
+            },
+            "rand": {
+              "version": "0.9"
+            },
+            "tokio": {
+              "version": "1",
+              "features": ["sync", "time"]
+            },
+            "url": {
+              "version": "2"
+            }
+          },
+          "commands": ["auth_status", "auth_sign_in", "auth_sign_out"]
+        }
+      }
+    },
+    {
+      "id": "auto-update",
+      "title": "Automatic updates",
+      "category": "distribution",
+      "summary": "Checks for and installs new versions. Electron: GitHub releases of a public repository or any static file host. Tauri: signed update manifests from any URL.",
+      "options": {
+        "source": {
+          "description": "Electron only: github (public repository) or static (any file host)",
+          "required": false
+        },
+        "baseUrl": {
+          "description": "Electron static source: base URL where make output is uploaded",
+          "required": false
+        },
+        "endpoint": {
+          "description": "Tauri: URL of latest.json, e.g. https://github.com/OWNER/REPO/releases/latest/download/latest.json",
+          "required": false
+        },
+        "pubkey": {
+          "description": "Tauri: public key printed by `bun run tauri signer generate`",
+          "required": false
+        }
+      },
+      "manualSteps": [
+        "Electron github source: set repository in the plan, make the repository public, and publish with `bun run publish`.",
+        "Electron static source: upload `out/make` contents to <baseUrl>/<platform>/<arch>/ for each release.",
+        "Tauri: run `bun run tauri signer generate -w ~/.tauri/app.key`, put the public key in moduleOptions.auto-update.pubkey, and set TAURI_SIGNING_PRIVATE_KEY (and _PASSWORD) when building releases."
+      ],
+      "implementations": {
+        "electron": {
+          "overlay": "electron/modules/auto-update",
+          "mainModule": true,
+          "dependencies": {
+            "update-electron-app": "^3.3.0"
+          }
+        },
+        "tauri": {
+          "overlay": "tauri/modules/auto-update",
+          "rendererFeature": true,
+          "rustModule": "auto_update",
+          "cargo": {
+            "tauri-plugin-updater": {
+              "version": "2"
+            },
+            "tauri-plugin-process": {
+              "version": "2"
+            }
+          },
+          "commands": ["update_check", "update_install"],
+          "tauriConf": {
+            "plugins": {
+              "updater": {
+                "pubkey": "",
+                "endpoints": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "filesystem",
+      "title": "File access",
+      "category": "filesystem",
+      "summary": "Native open/save dialogs and reading or writing the files the user picked. Nothing outside the user's choices is reachable from the interface.",
+      "implementations": {
+        "electron": {
+          "overlay": "electron/modules/filesystem",
+          "mainModule": true,
+          "rendererFeature": true
+        },
+        "tauri": {
+          "overlay": "tauri/modules/filesystem",
+          "rendererFeature": true,
+          "rustModule": "filesystem",
+          "cargo": {
+            "tauri-plugin-dialog": {
+              "version": "2"
+            }
+          },
+          "commands": ["fs_open_text_file", "fs_save_text_file"]
+        }
+      }
+    },
+    {
+      "id": "background",
+      "title": "Tray and background work",
+      "category": "lifecycle",
+      "summary": "Tray icon, start at login, and work that continues when the window is closed (Electron: a utilityProcess worker; Tauri: an async Rust task).",
+      "implementations": {
+        "electron": {
+          "overlay": "electron/modules/background",
+          "mainModule": true,
+          "rendererFeature": true
+        },
+        "tauri": {
+          "overlay": "tauri/modules/background",
+          "rendererFeature": true,
+          "rustModule": "background",
+          "rustSetup": true,
+          "cargo": {
+            "tauri": {
+              "version": "2",
+              "features": ["tray-icon"]
+            },
+            "tauri-plugin-autostart": {
+              "version": "2"
+            },
+            "tokio": {
+              "version": "1",
+              "features": ["time"]
+            }
+          },
+          "commands": ["background_status", "background_set_launch_at_login"]
+        }
+      }
+    },
+    {
+      "id": "crash-reporting",
+      "title": "Crash reporting (Sentry)",
+      "category": "observability",
+      "summary": "Sends errors and native crashes from every process to a Sentry project.",
+      "options": {
+        "dsn": {
+          "description": "Sentry project DSN (reporting stays off until set)",
+          "required": false,
+          "example": "https://key@o0.ingest.sentry.io/0"
+        },
+        "environment": {
+          "description": "Environment name (default production)",
+          "required": false
+        }
+      },
+      "manualSteps": [
+        "Upload source maps for readable stack traces (Sentry's Vite plugin) when you set up release builds."
+      ],
+      "implementations": {
+        "electron": {
+          "overlay": "electron/modules/crash-reporting",
+          "mainModule": true,
+          "rendererFeature": true,
+          "dependencies": {
+            "@sentry/electron": "^8.3.0"
+          }
+        }
+      }
+    },
+    {
+      "id": "database-prisma",
+      "title": "Prisma ORM instead of the built-in SQLite layer",
+      "category": "persistence",
+      "manualOnly": true,
+      "summary": "For apps whose schema already lives in Prisma on a server. Not generated automatically because it adds a code-generation step and, with the better-sqlite3 adapter, a native module that must be rebuilt for Electron.",
+      "manualSteps": [
+        "bun add @prisma/client @prisma/adapter-better-sqlite3 better-sqlite3 && bun add -d prisma",
+        "Add `\"better-sqlite3\"` to trustedDependencies in package.json and keep AutoUnpackNativesPlugin in forge.config.ts (already present).",
+        "Create prisma/schema.prisma with provider = \"sqlite\"; run `bunx prisma generate` before `bun run dev` and in CI.",
+        "Create the client only in the main process with new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: `file:${path.join(app.getPath('userData'), 'app.db')}` }) }).",
+        "Ship migrations by running `prisma migrate diff` to SQL and applying them at start-up (the migration engine is not bundled), or ship a pre-migrated database file and copy it to userData on first run.",
+        "Electron Forge rebuilds better-sqlite3 for Electron during `bun run dev` and `bun run package`; verify with `bun run test:e2e`."
+      ],
+      "implementations": {},
+      "appliesTo": ["electron"]
+    },
+    {
+      "id": "peer-to-peer",
+      "title": "Peer-to-peer transport",
+      "category": "networking",
+      "manualOnly": true,
+      "summary": "Direct device-to-device connections. Chosen per product, so it is documented rather than generated.",
+      "manualSteps": [
+        "Pick the transport first: iroh (QUIC with relay fallback; Rust-first, strongest NAT traversal), libp2p (cross-language, modular), Hyperswarm (JavaScript DHT + hole punching), or WebRTC data channels (needs a signalling server).",
+        "Electron: run the transport in a utilityProcess worker (add the background module and put it in src/main/workers/).",
+        "Tauri: use the Rust crate directly (iroh, libp2p, quinn) in a tokio task started from setup(), and stream progress to the interface with a Channel.",
+        "Never put key material in a QR code; use a short-lived pairing token."
+      ],
+      "implementations": {},
+      "appliesTo": ["electron", "tauri"]
+    }
+  ],
+  "frontends": {
+    "vite": {
+      "title": "React + Vite",
+      "summary": "A single-page React app built by Vite with TanStack Router (hash routes). The default; fastest builds and the simplest setup.",
+      "default": true
+    },
+    "nextjs": {
+      "title": "Next.js (static export)",
+      "summary": "A Next.js App Router project exported to static files at build time (output: \"export\"). Use when the team already works in Next.js or wants its file-based routing. Server features (server actions, route handlers, middleware, image optimization, incremental regeneration) do not exist in a desktop app.",
+      "profiles": ["native"],
+      "implementations": {
+        "electron": {
+          "overlays": [
+            {
+              "from": "frontends/nextjs/root",
+              "into": "root"
+            },
+            {
+              "from": "frontends/nextjs/renderer",
+              "into": "renderer"
+            },
+            {
+              "from": "frontends/nextjs/electron",
+              "into": "root"
+            }
+          ],
+          "remove": [
+            "index.html",
+            "vite.renderer.config.mts",
+            "src/renderer/main.tsx",
+            "src/renderer/router.tsx",
+            "src/renderer/vite-env.d.ts",
+            "src/renderer/screens/offline.tsx",
+            "src/main/local-renderer.ts"
+          ],
+          "packageJson": {
+            "scripts": {
+              "dev": "concurrently -k -n web,app -c blue,magenta \"next dev --port 3000\" \"electron-forge start\"",
+              "build:web": "next build",
+              "package": "bun run build:web && electron-forge package",
+              "make": "bun run build:web && electron-forge make",
+              "publish": "bun run build:web && electron-forge publish",
+              "test:e2e": "bun run build:web && electron-forge package && playwright test"
+            },
+            "dependencies": {
+              "next": "^16.4.2"
+            },
+            "devDependencies": {
+              "@tailwindcss/postcss": "^4.3.3",
+              "concurrently": "^10.0.6"
+            },
+            "removeDependencies": ["@tanstack/react-router", "@tailwindcss/vite"]
+          },
+          "jsonPatches": {
+            "biome.json": {
+              "files": {
+                "includes": ["!.next", "!next-env.d.ts"]
+              }
+            },
+            "tsconfig.json": {
+              "compilerOptions": {
+                "allowJs": true,
+                "incremental": true,
+                "plugins": [
+                  {
+                    "name": "next"
+                  }
+                ]
+              },
+              "include": ["next-env.d.ts", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
+              "exclude": ["node_modules"]
+            }
+          },
+          "gitignore": [".next/", "web-export/", "next-env.d.ts", "*.tsbuildinfo"]
+        },
+        "tauri": {
+          "overlays": [
+            {
+              "from": "frontends/nextjs/root",
+              "into": "root"
+            },
+            {
+              "from": "frontends/nextjs/renderer",
+              "into": "renderer"
+            },
+            {
+              "from": "frontends/nextjs/tauri",
+              "into": "root"
+            }
+          ],
+          "remove": ["index.html", "vite.config.ts", "src/main.tsx", "src/router.tsx", "src/vite-env.d.ts"],
+          "packageJson": {
+            "scripts": {
+              "dev:web": "next dev --port 3000",
+              "build": "next build"
+            },
+            "dependencies": {
+              "next": "^16.4.2"
+            },
+            "devDependencies": {
+              "@tailwindcss/postcss": "^4.3.3"
+            },
+            "removeDependencies": ["@tanstack/react-router", "@tailwindcss/vite"]
+          },
+          "jsonPatches": {
+            "biome.json": {
+              "files": {
+                "includes": ["!.next", "!out", "!next-env.d.ts"]
+              }
+            },
+            "tsconfig.json": {
+              "compilerOptions": {
+                "allowJs": true,
+                "incremental": true,
+                "plugins": [
+                  {
+                    "name": "next"
+                  }
+                ]
+              },
+              "include": ["next-env.d.ts", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
+              "exclude": ["node_modules"]
+            }
+          },
+          "tauriConf": {
+            "build": {
+              "devUrl": "http://localhost:3000",
+              "frontendDist": "../out"
+            }
+          },
+          "gitignore": [".next/", "out/", "next-env.d.ts", "*.tsbuildinfo"]
+        }
+      }
+    }
+  },
+  "uiKits": {
+    "shadcn": {
+      "title": "shadcn/ui",
+      "summary": "Accessible components copied into the app (Radix primitives styled with Tailwind CSS). Desktop-style by default and fully restylable. The default.",
+      "default": true
+    },
+    "konsta": {
+      "title": "Konsta UI",
+      "summary": "Tailwind CSS components that reproduce native iOS and Material Design (Android) look and behaviour: navigation bars, tab bars, lists, sheets, toggles. Use for an app-store look, especially with Tauri's Android/iOS targets. Module panels keep their shadcn/ui components.",
+      "themes": ["ios", "material"],
+      "implementations": {
+        "electron": {
+          "overlays": [
+            {
+              "from": "ui/konsta/renderer",
+              "into": "renderer"
+            },
+            {
+              "from": "ui/konsta/electron",
+              "into": "renderer"
+            }
+          ],
+          "packageJson": {
+            "dependencies": {
+              "konsta": "^5.5.0"
+            }
+          },
+          "textInserts": [
+            {
+              "file": "styles/globals.css",
+              "into": "renderer",
+              "after": "@import \"tw-animate-css\";",
+              "text": "/* Konsta UI components (iOS and Material styles). Imported before the tokens below so bg-primary keeps the plan's brand color. */\n@import \"konsta/react/theme.css\";"
+            }
+          ]
+        },
+        "tauri": {
+          "overlays": [
+            {
+              "from": "ui/konsta/renderer",
+              "into": "renderer"
+            },
+            {
+              "from": "ui/konsta/tauri",
+              "into": "renderer"
+            }
+          ],
+          "packageJson": {
+            "dependencies": {
+              "konsta": "^5.5.0"
+            }
+          },
+          "textInserts": [
+            {
+              "file": "styles/globals.css",
+              "into": "renderer",
+              "after": "@import \"tw-animate-css\";",
+              "text": "/* Konsta UI components (iOS and Material styles). Imported before the tokens below so bg-primary keeps the plan's brand color. */\n@import \"konsta/react/theme.css\";"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "packageManagers": {
+    "bun": {
+      "title": "Bun",
+      "default": true
+    },
+    "npm": {
+      "title": "npm"
+    }
+  }
+}

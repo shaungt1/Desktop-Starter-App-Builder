@@ -1,0 +1,13 @@
+{
+  "name": "Acme Touch",
+  "slug": "acme-touch",
+  "appId": "com.acme.touch",
+  "description": "Electron app with the Konsta UI (iOS look) interface, managed with npm.",
+  "author": "Acme Inc.",
+  "base": "electron",
+  "profile": "native",
+  "ui": "konsta",
+  "uiTheme": "ios",
+  "packageManager": "npm",
+  "modules": ["database"]
+}

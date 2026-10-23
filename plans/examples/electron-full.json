@@ -1,0 +1,17 @@
+{
+  "name": "Acme Workspace",
+  "slug": "acme-workspace",
+  "appId": "com.acme.workspace",
+  "scheme": "acmeworkspace",
+  "description": "Every Electron module enabled, for testing the builder.",
+  "author": "Acme Inc.",
+  "base": "electron",
+  "profile": "native",
+  "repository": "acme/acme-workspace",
+  "modules": ["database", "secure-storage", "auth-oidc", "auto-update", "filesystem", "background", "crash-reporting"],
+  "moduleOptions": {
+    "auth-oidc": { "issuer": "https://id.example.com", "clientId": "desktop-app" },
+    "auto-update": { "source": "github" },
+    "crash-reporting": { "dsn": "" }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "Acme Lite",
+  "slug": "acme-lite",
+  "appId": "com.acme.lite",
+  "scheme": "acmelite",
+  "description": "A small, fast companion app.",
+  "author": "Acme Inc.",
+  "base": "tauri",
+  "profile": "native",
+  "modules": []
+}

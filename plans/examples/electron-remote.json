@@ -1,0 +1,13 @@
+{
+  "name": "Acme Portal",
+  "slug": "acme-portal",
+  "appId": "com.acme.portal",
+  "scheme": "acmeportal",
+  "description": "Desktop shell around the hosted Acme web app.",
+  "author": "Acme Inc.",
+  "base": "electron",
+  "profile": "remote",
+  "remoteUrl": "https://example.com",
+  "allowedOrigins": ["https://www.iana.org"],
+  "modules": ["secure-storage"]
+}

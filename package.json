@@ -1,0 +1,26 @@
+{
+  "name": "desktop-starter-app-builder",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Reusable generator that fills an empty folder with a production-ready Electron or Tauri desktop application, driven by scripts or an AI agent.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "bun": ">=1.3.0"
+  },
+  "scripts": {
+    "dsab": "bun cli/main.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "bun test tests/unit",
+    "test:generate": "bun test tests/generation --timeout 3600000",
+    "verify": "bun run typecheck && bun run lint && bun run test",
+    "docs:modules": "bun scripts/generate-module-docs.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.2",
+    "@types/bun": "1.4.3",
+    "typescript": "6.0.3"
+  }
+}

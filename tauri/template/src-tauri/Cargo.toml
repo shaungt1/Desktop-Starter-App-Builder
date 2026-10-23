@@ -1,0 +1,39 @@
+[package]
+name = "__APP_SLUG__"
+version = "__APP_VERSION__"
+description = "__APP_DESCRIPTION__"
+authors = ["__APP_AUTHOR__"]
+edition = "2024"
+rust-version = "1.90"
+
+[lib]
+# Fixed library name so main.rs never changes; the `_lib` suffix avoids a Windows name clash with the binary.
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-deep-link = "2"
+tauri-plugin-log = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-store = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+thiserror = "2"
+# @dsab:module-dependencies
+
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+tauri-plugin-window-state = "2"
+
+# Smaller, faster release binaries (https://v2.tauri.app/concept/size/).
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

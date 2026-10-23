@@ -1,0 +1,12 @@
+{
+  "name": "Acme Next Desk",
+  "slug": "acme-next-desk",
+  "appId": "com.acme.nextdesk",
+  "description": "Electron app with a Next.js (static export) interface and a local database.",
+  "author": "Acme Inc.",
+  "base": "electron",
+  "profile": "native",
+  "frontend": "nextjs",
+  "ui": "shadcn",
+  "modules": ["database"]
+}

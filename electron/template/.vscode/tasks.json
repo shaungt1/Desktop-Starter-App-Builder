@@ -1,0 +1,53 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "App: check this machine (doctor)",
+      "type": "shell",
+      "command": "bun run doctor",
+      "problemMatcher": []
+    },
+    {
+      "label": "App: install missing tools (detects Windows/macOS/Linux)",
+      "type": "shell",
+      "command": "bash scripts/bootstrap.sh",
+      "problemMatcher": []
+    },
+    {
+      "label": "App: install packages",
+      "type": "shell",
+      "command": "bun install",
+      "problemMatcher": []
+    },
+    {
+      "label": "App: dev",
+      "type": "shell",
+      "command": "bun run dev",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "App: verify",
+      "type": "shell",
+      "command": "bun run verify",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "App: end-to-end tests",
+      "type": "shell",
+      "command": "bun run test:e2e",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "App: build installers",
+      "type": "shell",
+      "command": "bun run make",
+      "problemMatcher": []
+    }
+  ]
+}

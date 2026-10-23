@@ -1,0 +1,123 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "name",
+      "type": "promptString",
+      "description": "App display name"
+    },
+    {
+      "id": "base",
+      "type": "pickString",
+      "description": "Base framework",
+      "options": [
+        "electron",
+        "tauri"
+      ],
+      "default": "electron"
+    },
+    {
+      "id": "plan",
+      "type": "promptString",
+      "description": "Path to the project plan JSON",
+      "default": "plans/examples/electron-native.json"
+    },
+    {
+      "id": "target",
+      "type": "promptString",
+      "description": "Folder for the generated app (outside this repository)",
+      "default": "../my-app"
+    },
+    {
+      "id": "module",
+      "type": "promptString",
+      "description": "Module id (see docs/MODULES.md)"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "Builder: install",
+      "type": "shell",
+      "command": "bun install",
+      "problemMatcher": []
+    },
+    {
+      "label": "Builder: install missing tools (detects Windows/macOS/Linux)",
+      "type": "shell",
+      "command": "bash start.sh bootstrap --base ${input:base}",
+      "problemMatcher": []
+    },
+    {
+      "label": "Builder: doctor",
+      "type": "shell",
+      "command": "bun cli/main.ts doctor --base ${input:base}",
+      "problemMatcher": []
+    },
+    {
+      "label": "Builder: list bases and modules",
+      "type": "shell",
+      "command": "bun cli/main.ts list && bun cli/main.ts module list",
+      "problemMatcher": []
+    },
+    {
+      "label": "Builder: check plan",
+      "type": "shell",
+      "command": "bun cli/main.ts plan check ${input:plan}",
+      "problemMatcher": []
+    },
+    {
+      "label": "Builder: new app in one step (clean slate)",
+      "type": "shell",
+      "command": "bun cli/main.ts new ${input:target} --name \"${input:name}\" --base ${input:base} --install --verify",
+      "problemMatcher": []
+    },
+    {
+      "label": "Builder: create app (install + verify)",
+      "type": "shell",
+      "command": "bun cli/main.ts create ${input:target} --plan ${input:plan} --install --verify",
+      "problemMatcher": []
+    },
+    {
+      "label": "Builder: verify app",
+      "type": "shell",
+      "command": "bun cli/main.ts verify ${input:target}",
+      "problemMatcher": []
+    },
+    {
+      "label": "Builder: run app (dev)",
+      "type": "shell",
+      "command": "bun cli/main.ts run ${input:target} dev",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Builder: add module",
+      "type": "shell",
+      "command": "bun cli/main.ts module add ${input:module} ${input:target}",
+      "problemMatcher": []
+    },
+    {
+      "label": "Builder: build installers",
+      "type": "shell",
+      "command": "bun cli/main.ts release ${input:target}",
+      "problemMatcher": []
+    },
+    {
+      "label": "Builder: verify builder",
+      "type": "shell",
+      "command": "bun run verify",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Builder: full generation test",
+      "type": "shell",
+      "command": "bun run test:generate",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

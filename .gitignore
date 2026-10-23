@@ -1,0 +1,11 @@
+node_modules/
+.cache/
+out/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+# Generated apps never live inside the builder.
+generated/

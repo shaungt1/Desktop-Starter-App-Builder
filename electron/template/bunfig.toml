@@ -1,0 +1,3 @@
+# Electron packaging needs a flat node_modules folder (the layout npm creates).
+[install]
+linker = "hoisted"

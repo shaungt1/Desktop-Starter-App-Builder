@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "description": "Outside projects the owned templates were derived from. The templates under electron/ and tauri/ are the source of truth; these pins exist so fixes upstream can be reviewed and adopted deliberately (bash start.sh upstream check).",
+  "sources": [
+    {
+      "id": "electron-shadcn",
+      "kind": "git",
+      "url": "https://github.com/LuanRoger/electron-shadcn.git",
+      "commit": "34b8047c7fee971a57408109ad902b1878730638",
+      "license": "MIT",
+      "usedFor": "Electron Forge + Vite layout, Fuses configuration, oRPC over MessagePort IPC pattern (electron/template)"
+    },
+    {
+      "id": "create-tauri-app",
+      "kind": "git",
+      "url": "https://github.com/tauri-apps/create-tauri-app.git",
+      "commit": "379add21351259c03d3a61fa44aea62485b50cc9",
+      "license": "MIT OR Apache-2.0",
+      "usedFor": "React + TypeScript + Vite template layout and src-tauri structure (tauri/template)"
+    },
+    {
+      "id": "tauri-docs",
+      "kind": "git",
+      "url": "https://github.com/tauri-apps/tauri-docs.git",
+      "commit": "b62e441c3522fb9ffb01a92898071bac9463d6f7",
+      "license": "MIT",
+      "usedFor": "Facts summarized in tauri/docs (agent reference)"
+    },
+    {
+      "id": "electron",
+      "kind": "npm",
+      "package": "electron",
+      "version": "45.0.0",
+      "license": "MIT",
+      "usedFor": "Electron runtime pinned in electron/template/package.json"
+    },
+    {
+      "id": "electron-forge",
+      "kind": "npm",
+      "package": "@electron-forge/cli",
+      "version": "8.0.1",
+      "license": "MIT",
+      "usedFor": "Build, package and publish for Electron"
+    },
+    {
+      "id": "tauri-cli",
+      "kind": "npm",
+      "package": "@tauri-apps/cli",
+      "version": "2.12.4",
+      "license": "MIT OR Apache-2.0",
+      "usedFor": "Tauri CLI in tauri/template/package.json"
+    }
+  ]
+}

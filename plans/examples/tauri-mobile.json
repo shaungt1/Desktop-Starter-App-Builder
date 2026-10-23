@@ -1,0 +1,13 @@
+{
+  "name": "Acme Pocket",
+  "slug": "acme-pocket",
+  "appId": "com.acme.pocket",
+  "description": "Tauri app for desktop, Android and iOS with the Material look.",
+  "author": "Acme Inc.",
+  "base": "tauri",
+  "profile": "native",
+  "ui": "konsta",
+  "uiTheme": "material",
+  "targets": ["desktop", "android", "ios"],
+  "modules": ["database"]
+}

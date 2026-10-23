@@ -1,0 +1,11 @@
+{
+  "name": "Acme Lite Portal",
+  "slug": "acme-lite-portal",
+  "appId": "com.acme.liteportal",
+  "description": "Small desktop shell around the hosted Acme web app.",
+  "author": "Acme Inc.",
+  "base": "tauri",
+  "profile": "remote",
+  "remoteUrl": "https://example.com",
+  "modules": []
+}

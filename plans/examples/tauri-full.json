@@ -1,0 +1,15 @@
+{
+  "name": "Acme Lite Pro",
+  "slug": "acme-lite-pro",
+  "appId": "com.acme.litepro",
+  "scheme": "acmelitepro",
+  "description": "Every Tauri module enabled, for testing the builder.",
+  "author": "Acme Inc.",
+  "base": "tauri",
+  "profile": "native",
+  "repository": "acme/acme-lite-pro",
+  "modules": ["database", "secure-storage", "auth-oidc", "auto-update", "filesystem", "background"],
+  "moduleOptions": {
+    "auth-oidc": { "issuer": "https://id.example.com", "clientId": "desktop-app" }
+  }
+}

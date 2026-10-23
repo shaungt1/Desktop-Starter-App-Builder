@@ -1,0 +1,13 @@
+{
+  "name": "Acme Field",
+  "slug": "acme-field",
+  "appId": "com.acme.field",
+  "description": "Tauri app with a Next.js interface styled with Konsta UI.",
+  "author": "Acme Inc.",
+  "base": "tauri",
+  "profile": "native",
+  "frontend": "nextjs",
+  "ui": "konsta",
+  "uiTheme": "ios",
+  "modules": ["database"]
+}

@@ -1,0 +1,57 @@
+# Builder checks on every change, then full generation (install + verify, and
+# end-to-end tests on Linux) on Linux, Windows and macOS.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  builder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run verify
+
+  generate:
+    needs: builder
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      DSAB_PLANS: electron-full,electron-exported,tauri-full
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+      - name: Linux system packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev webkit2gtk-driver xvfb dbus-x11 fakeroot
+          cargo install tauri-driver --locked
+      - run: bun install --frozen-lockfile
+      - name: Generate, install and verify (Windows and macOS)
+        if: runner.os != 'Linux'
+        run: bun run test:generate
+      - name: Generate, install, verify and end-to-end test (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a dbus-run-session -- bun run test:generate
+        env:
+          DSAB_E2E: "1"
