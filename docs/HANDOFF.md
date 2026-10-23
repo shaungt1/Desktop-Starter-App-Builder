@@ -1,297 +1,202 @@
 # Hand-off: state of Desktop Starter App Builder and the work that remains
 
-This document hands the repository to the next agent session (for example
-Claude Code running on the user's Windows machine). It records what the
-repository is, what was built and how it was tested, the user's working
-rules, every open task with exact steps, and an analysis of the risks. Read it
-after `AGENT_START.md` and before running anything.
+This document hands the repository to the next agent session or developer. It
+records what the repository is, what has been tested and where, the working
+rules the owner asked for, and the work that remains. Read it after
+`AGENT_START.md` and before running anything. It was last updated for release
+1.2.0 (2026-10-23).
 
 ## 1. What this repository is
 
-Desktop Starter App Builder is a generator for desktop applications. A small
-JSON **project plan** describes an app (name, identifier, base framework,
-interface choices, optional modules), and the builder writes a complete,
-tested, self-contained app into a folder outside the repository. Two **bases**
-(desktop frameworks) are supported: **Electron** (Chromium plus Node.js,
-packaged with Electron Forge) and **Tauri 2** (the operating system's web view
-plus a Rust core). The builder is a TypeScript program run by Bun
-(`cli/main.ts`), entered through `start.sh` (Git Bash, macOS, Linux) or
-`start.ps1` (PowerShell). `docs/REPOSITORY_STRUCTURE.md` describes every
-folder and file.
+Desktop Starter App Builder is a **reusable kit that generates projects**. A
+small JSON **project plan** describes a project (name, identifier, base
+framework, interface choices, optional modules), and the builder writes a
+complete, tested, self-contained project into a folder outside the repository.
+The builder never copies itself or its Git history into the result, and the
+result needs the builder only if you want to add a module later. It is meant to
+be used by people and by AI coding agents: an agent follows `AGENT_START.md`,
+asks the missing questions, prepares the machine, writes and checks a plan,
+generates the project and proves it works.
 
-The repository lives at
-the folder where it was checked out. Its Git repository has an `origin`
-remote on GitHub; see section 8 for the commit and push state. The
-version in `package.json` is 1.1.0 and `CHANGELOG.md` lists what each version
-added.
+Three **bases** are supported:
 
-## 2. The user's working rules
+1. **Electron** (Chromium plus Node.js, packaged with Electron Forge), for large,
+   long-lived desktop products.
+2. **Tauri 2** (the operating system's web view plus a Rust core), for lean,
+   fast desktop apps and proofs of concept; it can also target Android and iOS.
+3. **Browser extension** (WXT, React, Tailwind CSS), a Manifest V3 add-on for
+   Chrome, Edge and Firefox, for products that live inside the browser.
 
-The rules below come from the user and apply to every step. They take
-precedence over convenience.
+The builder is a TypeScript program run by Bun (`cli/main.ts`), entered through
+`start.sh` (Git Bash, macOS, Linux) or `start.ps1` (PowerShell).
+`docs/REPOSITORY_STRUCTURE.md` describes every folder and file, and
+`docs/REQUIREMENTS.md` lists exactly what a machine needs for each base.
+
+Phone and tablet apps built with Expo (React Native) are **not** part of this
+repository. They belong to the separate Mobile Starter App Builder repository,
+which is maintained on its own. This repository can build Android and iOS apps
+only through Tauri 2.
+
+The version in `package.json` is 1.2.0; `CHANGELOG.md` lists what each version
+added. The Git repository has an `origin` remote on GitHub and uses `main`.
+
+## 2. The owner's working rules
+
+The rules below come from the repository's owner and apply to every step. They
+take precedence over convenience.
 
 1. **Check before installing.** Never assume a tool is missing. Run the
    read-only check (`bash start.sh doctor --base <base>`, or the tool's
    `--version`) first, and propose installing only what the check reports as
-   missing or too old. Bun 1.4.4 is already installed on this machine.
-2. **Git Bash is the shell on Windows.** Run every command in Git Bash
-   (`bash start.sh ...`). PowerShell support stays in the repository for other
-   people, but do not use it for this user's work.
+   missing or too old. Ask before installing system software.
+2. **Git Bash is the shell on Windows.** Run builder commands there
+   (`bash start.sh ...`). PowerShell support stays for other people.
 3. **Ask before anything irreversible or external.** Committing, pushing,
    publishing a release, signing, store submission and installing system
-   software each need the user's explicit approval for that specific action.
+   software each need the owner's approval for that specific action. (The owner
+   asked for the release 1.2.0 work to be merged into `main` and pushed.)
 4. **Never assume intent.** When a request can be read more than one way, ask
-   before doing the work. List options and let the user choose; label any
-   recommendation as non-binding.
+   before doing the work; label any recommendation as non-binding.
 5. **Define terms on first use**, write documents in connected prose that
-   introduces every list and table, and never put the user's name or any
-   author attribution into files (refer to "the user").
+   introduces every list and table, and never put the owner's name or any
+   author attribution into files (refer to "the owner" or "the user").
 6. **No time estimates** of any kind.
-7. **Never fabricate.** Mark anything not verified as **UNVERIFIED**; include
-   a URL in a document only after opening it and confirming it is the right
-   page.
-8. **Fix the builder, not only the output.** When a generated app fails, fix
+7. **Never fabricate.** Mark anything not verified as **UNVERIFIED**; include a
+   URL in a document only after opening it and confirming it is the right page.
+8. **Fix the builder, not only the output.** When a generated project fails, fix
    the cause in the builder's templates or code, run `bun run verify` in the
    builder, and regenerate to prove the fix.
+9. **Keep the history readable.** Work on a branch, commit in logical pieces
+   with a message that says what changed, why, and what was and was not
+   verified, then merge into `main` with a merge commit.
 
-## 3. What was built
+## 3. What exists
 
-The repository contains the following, all described in more detail in
-`README.md`, `AGENT_START.md` and `docs/`.
-
-1. **Builder commands**: `bootstrap` (detects Windows in Git Bash, macOS or
-   Linux and installs missing tools after asking), `doctor` (read-only machine
-   check), `list`, `module list|show|add`, `plan new|check`, `new` (plan from
-   flags and create in one step), `create`, `setup`, `verify`, `run`,
-   `release`, `upstream`.
-2. **Plan options**: `base` (electron, tauri), `profile` (native, remote,
-   exported on Electron), `frontend` (vite, nextjs), `ui` and `uiTheme`
-   (shadcn, or konsta with ios or material), `packageManager` (bun, npm),
-   `targets` (Tauri: desktop plus android and ios), `modules`,
-   `moduleOptions`, `theme`, `repository`.
-3. **Modules**: database, secure-storage, auth-oidc, auto-update,
-   filesystem, background (both bases), crash-reporting (Electron), plus two
-   documented recipes (database-prisma, peer-to-peer). Only `database` is
-   allowed with Android/iOS targets.
-4. **Self-contained generated apps**: each app gets its own Git repository
-   (no remote, no commit), `README.md`, `AGENTS.md`, `docs/` (setup
-   resources, the base's full reference, UI kits), `scripts/bootstrap.sh`,
-   `scripts/bootstrap.ps1`, `scripts/doctor.mjs`, `.vscode/` (tasks, Git Bash
-   as the terminal and task shell, recommended extensions) and
-   `.github/workflows/ci.yml` and `release.yml`.
-5. **Reference documentation**: `tauri/docs/reference/` (18 files: setup,
-   configuration, security, IPC, plugins, the plugin catalog with when and why,
-   distribution, testing, recipes, signing, pipelines, stores, mobile, mobile
-   plugins, architecture, Next.js); `electron/docs/reference/` (8 files:
-   architecture, makers, signing, publishing and updates, app stores, Next.js,
-   testing); `docs/SETUP_RESOURCES.md` (every tool per operating system with
-   verified package IDs); `docs/UI_KITS.md` (24 interface kits and 13
-   animation and gesture libraries).
-6. **Docker**: an optional Linux image (`docker/Dockerfile`) for CI or for
-   Linux and Android builds without installing toolchains; Android is added
-   with `--build-arg WITH_ANDROID=true`.
+1. **Builder commands**: `bootstrap`, `doctor`, `list`, `module list|show|add`,
+   `plan new|check`, `new`, `create`, `setup`, `verify`, `run`, `release`,
+   `upstream`.
+2. **Plan options**: `base`, `profile`, `frontend`, `ui` and `uiTheme`,
+   `packageManager`, `targets`, `modules`, `moduleOptions`, `theme`,
+   `repository`. Plan validation is per base (an extension accepts only the
+   `vite` frontend and the `shadcn` kit, and builds for the `browser` target).
+3. **Modules**: `database`, `secure-storage`, `auth-oidc`, `auto-update`,
+   `filesystem`, `background`, `crash-reporting` (desktop); `side-panel`,
+   `context-menu`, `content-ui` (extension); recipes `database-prisma` and
+   `peer-to-peer`.
+4. **Self-contained generated projects**: README, `AGENTS.md`, `docs/` (setup,
+   the base's full reference), `scripts/bootstrap.sh`, `scripts/bootstrap.ps1`,
+   `scripts/doctor.mjs`, `.vscode/` tasks and `.github/workflows/` (CI and
+   release), plus a fresh Git repository with no remote and no commit.
+5. **Machine preparation**: `docs/REQUIREMENTS.md` (the checklist),
+   `bootstrap` scripts (install after showing a plan and asking),
+   `doctor` (read-only), and the agent prompt `prompts/setup-machine.md`.
+6. **Reference documentation**: `tauri/docs/reference/` (18 pages),
+   `electron/docs/reference/` (8 pages), `extension/docs/reference/` (8 pages
+   plus `AGENT_REFERENCE.md`), `docs/SETUP_RESOURCES.md`, `docs/UI_KITS.md`.
+7. **Agent material**: `AGENT_START.md`, 14 skills in `skills/`, prompts in
+   `prompts/` and in each base's `prompts/` folder.
+8. **Docker**: `docker/Dockerfile` (optional Android layer), `docker/entrypoint.sh`,
+   `compose.yaml`; see `docs/DOCKER.md`.
 
 ## 4. What was tested, and where
 
-All testing so far happened in a Linux (Ubuntu 24.04) cloud workspace, not on
-the user's machine. The list below states exactly what passed there.
+`docs/TESTING.md` ("What was verified, and where") lists every executed run.
+In short:
 
-1. Builder: `bun run verify` passes (type check, Biome lint, 70 unit tests,
-   module-docs check, generation dry run of all 11 example plans).
-2. Generated apps: every example plan in `plans/examples/` was generated,
-   installed, verified (type check, lint, unit tests, and Rust tests for
-   Tauri) and end-to-end tested on Linux with `xvfb-run`:
-   electron-native, electron-remote, electron-exported, electron-full,
-   electron-nextjs, electron-konsta-npm (npm), tauri-native, tauri-remote,
-   tauri-full, tauri-nextjs-konsta, tauri-mobile (desktop build only).
-3. Electron `make` produced `.deb` and `.zip` installers; a Tauri release
-   build produced a `.deb` (an earlier pass).
-4. Bootstrap: `bash -n` and shellcheck pass; dry runs were correct on Linux,
-   simulated macOS and simulated Windows (Git Bash, with stand-ins for
-   winget, reg, setx and cygpath); the Windows branch also ran a mocked
-   install sequence. PowerShell bootstrap: parses cleanly and dry-runs under
-   PowerShell 7 on Linux.
-5. A separate review pass found eight defects, all fixed and re-tested (for
-   example, the bootstrap mistook `"uiTheme": "ios"` for an iOS target, and
-   npm apps still required Bun).
+1. **Windows 11 (Git Bash)**: builder `verify` (95 tests); all 11 desktop
+   example plans generated, installed, verified and end-to-end tested; both
+   extension example plans (and an npm variant) verified, built for Chrome and
+   Firefox, zipped and end-to-end tested in Chromium; `module add` on an
+   existing extension; Windows installers built (Electron Squirrel, Tauri MSI
+   and NSIS), unsigned and not installed; `bootstrap.sh` really installed
+   `tauri-driver` and the matching `msedgedriver`; `bootstrap.ps1` ran under
+   Windows PowerShell 5.1 (dry runs and the driver download).
+2. **Linux in Docker (Debian 12)**: the image builds with and without the
+   Android layer; `doctor` passes; the extension, Electron and Tauri examples
+   generate, verify and pass end-to-end tests inside it; and the `tauri-mobile`
+   example builds an unsigned Android APK and AAB.
+3. **Ubuntu 24.04 (earlier session)**: every desktop example plan, and Linux
+   installers.
 
-Nothing has run on Windows, macOS, Android, iOS, Docker or GitHub Actions.
+Nothing has run on macOS, iOS or GitHub Actions, and no installer was
+installed or launched, signed, or submitted to a store.
 
-## 5. Open tasks, in the order to do them
+## 5. Open work, in a sensible order
 
-The tasks below are complete as of this hand-off. Group A needs the user's
-machine; group B is code work; group C needs the user's accounts or
-decisions. Do group A first, because its results may change group B.
+The defects found in the first Windows and Docker runs are fixed
+(`docs/GAP_ANALYSIS.md`, "Gaps found by the first Windows and Docker runs"). What
+remains falls into three groups.
 
-### A. Verification on the user's Windows machine (Git Bash)
+### A. Needs another machine or account
 
-1. **Machine check.** From the repository root:
-   ```bash
-   bash start.sh doctor --base tauri --e2e
-   bash start.sh doctor --base electron
-   ```
-   Report each line. If something is missing or too old, show
-   `bash start.sh bootstrap --base <base> --e2e --dry-run` and wait for the
-   user's approval before running it without `--dry-run`. Expected Windows
-   needs for Tauri: Rust 1.90+ with the MSVC toolchain, Visual Studio C++
-   Build Tools ("Desktop development with C++"), WebView2; for Electron:
-   Node.js 22.17+.
-2. **Builder check.** `bun install` then `bun run verify` in the repository.
-   On failure, fix and re-run.
-3. **Generate and test each example plan** into folders outside the
-   repository (for example `/c/dsab-tests/<name>`):
-   ```bash
-   bash start.sh create /c/dsab-tests/tauri-full --plan plans/examples/tauri-full.json --install --verify
-   cd /c/dsab-tests/tauri-full && bun run test:e2e
-   ```
-   Do this for all 11 plans. The npm example uses `npm run test:e2e`. Tauri
-   end-to-end tests on Windows need `tauri-driver` (`cargo install
-   tauri-driver --locked`) and an `msedgedriver.exe` matching the installed
-   Edge version on the PATH (`docs/tauri/08-testing-debugging.md` in a
-   generated app explains how to obtain it). If they cannot run, record why.
-4. **Installers.** In an Electron app run `bun run make`; in a Tauri app run
-   `bun run build:app`. Install each result and confirm it launches.
-5. **Windows-specific risks to watch** (see section 6): path handling with
-   spaces, CRLF line endings, the Next.js `web-export` folder on Electron,
-   Rust MSVC linking, and the `doctor.mjs` shell use for `.cmd` shims.
+1. **macOS**: run `bash start.sh doctor --base <base>`, then generate and test
+   the example plans (`tauri-full` needs the WebdriverIO Tauri service for end-to-end
+   tests on macOS, which is not set up), then try iOS with `ios:init`, `ios:build`
+   and `ios:dev` on `plans/examples/tauri-mobile.json`.
+2. **GitHub Actions**: push, then check that the builder's `ci.yml` and a
+   generated project's `ci.yml` pass on all three operating systems. `release.yml`
+   runs on a `v*` tag and creates a draft release; an extension's store
+   submission runs only when started by hand.
+3. **Signing and stores**: Windows certificate, Apple Developer account, Android
+   keystore, Tauri updater key pair, and the Chrome Web Store, Firefox Add-ons and
+   Edge Add-ons accounts (`docs/REQUIREMENTS.md`, "What you need to ship"). The
+   release workflows contain the signing steps commented until the secrets exist.
+4. **Install and launch the built installers** on a clean machine, and sign them.
 
 ### B. Code work not yet done
 
-6. **Mobile build (Android).** With the user's approval to install Android
-   Studio, the SDK and the NDK: generate `plans/examples/tauri-mobile.json`,
-   run `bun run android:init`, `bun run android:build` and `bun run
-   android:dev` on an emulator. This is the first time the Rust code compiles
-   for a mobile target; fix `#[cfg(desktop)]` gating in
-   `tauri/template/src-tauri/src/*.rs` if it fails. `docs/tauri/14-mobile.md`
-   (in the app) lists environment variables and steps.
-7. **Mobile versions of modules.** Only `database` has `"mobile": true` in
-   `config/catalog.json`. `secure-storage` (keyring crate), `auth-oidc`
-   (deep links on mobile need app links) and `filesystem` (dialog plugin is
-   partial on mobile) need mobile support or stay desktop-only.
-8. **Tauri end-to-end tests on macOS** need the WebdriverIO Tauri service
-   (macOS has no WebDriver for its web view); not set up.
-9. **Tauri crash reporting** has no module; the community `sentry-tauri`
-   plugin is only documented.
-10. **Konsta UI gaps**: module panels still use shadcn components inside
-    Konsta screens; Konsta's brand color (`--color-brand-primary`, which must
-    be a hex color) is not set from the plan's theme (an OKLCH color).
-11. **Other interface kits** in `docs/UI_KITS.md` are documented only; adding
-    one means a new `uiKits` entry in `config/catalog.json` plus an overlay
-    under `ui/` (see `CONTRIBUTING.md`).
-12. **Next.js** is offered only with the native profile.
-13. **Tauri remote-profile end-to-end test** only proves the window opened
-    when the hosted site is unreachable; add a local test server if a
-    stronger check is wanted.
-14. **Bootstrap gaps**: it does not fetch `msedgedriver`; on Linux, Android
-    Studio is a manual step; on Windows, `NDK_HOME` is set only on a second
-    run with `--mobile` after the NDK is installed.
-15. **Builder CI** (`.github/workflows/ci.yml`) still uses
-    `actions/checkout@v4` and `actions/setup-node@v4`; generated apps use v7.
-16. **UNVERIFIED assumptions to confirm**: whether `tauri-apps/tauri-action@v1`
-    recognizes Bun's text `bun.lock`; the Android platform, build-tools and
-    NDK versions pinned in `docker/Dockerfile`; the Android download URL in the
-    Dockerfile (derived, not fetched).
-17. **Docker**: build the image with and without `WITH_ANDROID=true` and run
-    `bash start.sh doctor --base tauri` inside it.
-18. **GitHub Actions**: after the user creates the repository and approves a
-    push, run the builder CI and a generated app's `ci.yml`; `release.yml`
-    runs on a `v*` tag and creates a draft release (needs approval).
-19. **macOS and iOS** (needs a Mac): repeat group A, then `ios:init`,
-    `ios:build`, `ios:dev` on the mobile example.
+5. **Android on a device**: the `tauri-mobile` example builds an APK and AAB in
+   Docker (`docs/GAP_ANALYSIS.md`, "Android in Docker"), but `android:dev` on an
+   emulator has not been run. Mobile versions of the `secure-storage`,
+   `auth-oidc` and `filesystem` modules are not written; only `database` is
+   marked mobile-capable.
+6. **Crash reporting for Tauri and for extensions** (the community `sentry-tauri`
+   plugin is only documented).
+7. **Extension polish**: decide whether Firefox should build as Manifest V3
+   (`extension/docs/reference/06-browsers-and-cross-browser.md`), apply WXT's
+   PostCSS fix for `rem` units inside page overlays, add Safari packaging.
+8. **Konsta UI gaps** (module panels use shadcn components; brand color not set
+   from the plan) and other interface kits listed in `docs/UI_KITS.md`.
+9. **Tauri remote-profile end-to-end test** only proves the window opened when
+   the hosted site is unreachable; add a local test server for a stronger check.
+10. **Next.js** is offered only with the native profile.
 
-### C. Waiting on the user
+### C. Decisions for the owner
 
-20. **First Git commit** of the builder, whether to push, and the GitHub
-    repository name.
-21. **Signing credentials**: Windows certificate (OV/EV or Azure Artifact
-    Signing), Apple Developer account (macOS and iOS), Android keystore, Tauri
-    updater key pair. The release workflows contain the signing steps
-    commented out until these secrets exist (`docs/tauri/11-signing.md`,
-    `docs/electron/03-signing.md`).
-22. **Store accounts**: Microsoft Store, Apple App Store, Google Play, and
-    optionally CrabNebula Cloud.
-23. **Sibling builders**: Mobile Starter App Builder and Extension Starter
-    App Builder are only names; the existing Expo repository has not been
-    given the same bootstrap, machine detection and self-contained setup.
+11. How the Tauri mobile targets in this repository relate to the Mobile Starter
+    App Builder's own Tauri 2 generator, which overlaps them. Until decided, keep
+    them as they are and do not copy code between the repositories.
+12. Whether to rename the repository, because it now generates browser
+    extensions as well as desktop apps (the command and folder names would not
+    change).
 
-## 6. Analysis: where problems are most likely
+## 6. Where problems are most likely
 
-The points below are judgments from the code and the Linux test runs, not
-observed failures. They are listed so the next session looks there first.
+These are judgments from the code and the runs, not observed failures.
 
-1. **Windows is the largest unknown.** All end-to-end runs were on Linux.
-   Likely trouble spots: Electron Forge's Squirrel maker on Windows; Tauri's
-   MSVC linker if the C++ workload is incomplete; `xvfb-run` does not exist
-   on Windows (run end-to-end tests directly); Playwright's Electron launch
-   with the fuses the template sets; and paths with spaces. `.gitattributes`
-   forces LF line endings for everything except `.ps1`, which avoids most
-   line-ending problems in Git Bash.
-2. **Tauri end-to-end tests on Windows** depend on `msedgedriver.exe`
-   matching the installed Edge version; a version mismatch fails at session
-   start, not in the tests.
-3. **The mobile code path has never compiled.** The desktop build proves only
-   the desktop side of the `#[cfg(desktop)]` split. The most likely mobile
-   failures are an unused-import warning becoming an error under strict
-   settings, plugin crates that are desktop-only, and Android package-name
-   rules (the plan already rejects hyphens in `appId` when Android is a
-   target).
-4. **Next.js frontends** rely on two mechanisms that passed on Linux but
-   could differ elsewhere: Tauri's automatic hashing of Next.js's inline
-   scripts into the content security policy, and Electron's `app://` scheme
-   serving `web-export/`. If a packaged Next.js app shows a blank window,
-   check the developer console for blocked scripts or 404s first.
-5. **The bootstrap's Windows branch** has run only against stand-ins. Real
-   winget may return non-zero for "already installed" (the script reports and
-   continues), the Visual Studio Build Tools installer needs the user to
-   accept an administrator prompt, and newly installed tools may need a new
-   Git Bash window before they are on the PATH (the script adds the usual
-   folders for the current session).
-6. **Generated-app lint is strict.** Every generated app fails `verify` on
-   any Biome formatting difference. Template sources are formatted with the
-   apps' Biome settings; any template edit must be re-formatted the same way
-   (`CONTRIBUTING.md` explains), or every generated app will fail lint.
+1. **Version drift in upstream tools.** The templates pin major versions with
+   `^`. WXT, Electron, Tauri, Playwright and Biome move quickly; a fresh
+   `bun install` can pull a minor release that breaks lint or types. The generated
+   projects' lint is strict, so any template edit must be formatted with the
+   projects' Biome settings (`CONTRIBUTING.md`, "Development loop").
+2. **Windows PATH and version managers.** Tools installed after a terminal opened
+   are not on its PATH; Node.js under nvm-windows, Bun under `~/.bun/bin` and Rust
+   under `~/.cargo/bin` are the usual cases (`docs/TROUBLESHOOTING.md`).
+3. **`msedgedriver` drift.** Edge updates itself, so a driver that matched
+   yesterday can fail today; `doctor --e2e` reports the mismatch and the
+   bootstrap scripts download the matching one.
+4. **Extension store rules.** Store policies and the `wxt submit` credential names
+   change; the publishing page is dated and marks what it could not confirm.
+5. **Next.js frontends** depend on Tauri hashing inline scripts into the content
+   security policy and on Electron serving the export from `app://`. A blank window
+   in a packaged Next.js project usually means a blocked script or a 404 in the
+   developer console.
 
-## 7. Definition of done for the next session
+## 7. Definition of done for a session
 
-The next session is done when: every group A step has run on Windows with its
-result reported; every failure found there is fixed in the builder with
-`bun run verify` passing and the affected plan regenerated and passing; the
-results are added to `docs/GAP_ANALYSIS.md` (moving items from open to closed,
-or adding new ones); and nothing was committed, pushed, signed, published or
-installed without the user's explicit approval.
-
-## 8. Status after the first Windows session
-
-This section records what the first session on the user's Windows machine
-(Git Bash) did, so the next session continues from here and not from section 5.
-
-1. **Done.** Group A step 1 (machine check) and step 2 (builder check). The
-   machine check on Windows 11 found Bun 1.4.4, Git, Visual Studio C++ Build
-   Tools and WebView2 present; Rust, Cargo and `tauri-driver` missing; and
-   Node.js 22.14.0 (managed by nvm-windows), which is older than the 22.17
-   that Electron apps need. `bun run verify` passes (type check, lint, 70
-   tests, generation dry run of all 11 example plans).
-2. **Fixed in the builder.** Three defects in the Windows branch of
-   `scripts/bootstrap.sh` (an older system Node.js shadowing the user's own;
-   winget not found because its WindowsApps folder was not searched; a
-   conflicting winget Node.js install proposed on a machine that uses
-   nvm-windows). They are recorded in `docs/GAP_ANALYSIS.md`.
-3. **Blocked on the user's approval.** Group A steps 3 and 4 need system
-   software that the user has not yet approved installing: Node.js 22.17+ via
-   `nvm install 22.17.0` and `nvm use 22.17.0` (Electron); Rust via
-   `winget install Rustlang.Rustup` then `rustup default stable-msvc`, and
-   `cargo install tauri-driver --locked`, and a matching `msedgedriver.exe`
-   (Tauri). Show `bash start.sh bootstrap --base <base> --e2e --dry-run` and ask.
-4. **Sibling builders exist as separate repositories.** The Mobile Starter App
-   Builder (Expo and a Tauri 2 mobile generator, with its own history) and the
-   Browser Extension Starter App Builder (empty) sit beside this repository on
-   the user's disk. Task 23 in section 5 is therefore superseded: do not copy
-   mobile or extension generators into this repository without asking the user,
-   because the mobile builder is under active work and its Tauri 2 generator
-   overlaps this repository's Tauri base with mobile targets. Deciding how the
-   two Tauri mobile paths relate is an open question for the user.
-5. **Commit and push.** The user authorized committing and pushing the
-   repository to `main` of its `origin` remote. The remote was empty when
-   checked, so the first push needs no force. The commit message states that all
-   end-to-end testing so far ran on Linux and that the Windows runs of groups A3
-   and A4 had not happened.
+A session is done when: every change is on a branch, committed in logical pieces
+and merged into `main` with a clear merge commit; `bun run verify` passes in the
+builder; any template or module change was proved by generating a project and
+running its own `verify` (and its end-to-end tests where a window can run);
+`docs/GAP_ANALYSIS.md`, `docs/TESTING.md` and this file say only what was actually
+run; and nothing was signed, published or submitted without the owner's approval.

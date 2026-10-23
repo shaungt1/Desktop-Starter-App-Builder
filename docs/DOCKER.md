@@ -6,7 +6,7 @@ Docker runs programs inside a **container**: a sealed Linux environment with
 its own installed tools, started from an **image** (a recipe of what to
 install). This repository includes an image recipe so that a machine with only
 Docker installed can still generate, verify, end-to-end test and package
-**Linux** builds of Electron and Tauri apps, and (optionally) **Android**
+**Linux** builds of Electron apps, Tauri apps and browser extensions, and (optionally) **Android**
 builds of Tauri apps, without installing Bun, Node.js, Rust, WebKitGTK or the
 Android SDK on the machine itself. Typical uses are a CI server, a shared build
 machine, or reproducing a Linux build exactly.
@@ -26,8 +26,11 @@ Bun (installed through npm), Rust through rustup, `tauri-driver`, WebKitGTK 4.1
 development files and `webkit2gtk-driver` for Tauri, the shared libraries the
 Electron runtime needs, Xvfb and a D-Bus session for running apps without a
 screen, and `dpkg`, `fakeroot` and `rpm` for Linux installers. The entrypoint
-(`docker/entrypoint.sh`) wraps every command in `xvfb-run` and
-`dbus-run-session`, so apps can start inside the container.
+(`docker/entrypoint.sh`) starts Xvfb itself, waits for its display socket, and
+runs every command inside `dbus-run-session`, so apps can start inside the
+container. It does not use `xvfb-run`, because `xvfb-run` hangs when it is the
+container's first process. Browser extension end-to-end tests run Chromium
+without a window, so they work in the container without the display.
 
 Building with `--build-arg WITH_ANDROID=true` adds OpenJDK 17, the Android SDK
 command-line tools, platform tools, an Android platform, build tools, the NDK
@@ -74,15 +77,15 @@ sets `shm_size: 1gb`. The container runs as root; generated Electron
 end-to-end tests detect this and pass `--no-sandbox` to Chromium, which is
 acceptable in a disposable container but never in a shipped app.
 
-The Dockerfile was written for this release but could not be built in the
-environment where the builder was assembled, because that environment had no
-access to a container registry or to Google's Android download server. The
-Android download address follows Google's repository naming
-(`https://dl.google.com/android/repository/<file name>`) and was not fetched;
-the checksum check makes a wrong file fail the build instead of installing it.
-The default Android platform, build-tools and NDK versions are **UNVERIFIED**
-choices; `sdkmanager --list` inside the container shows the available ones. Every package and command in it was exercised
-directly on Ubuntu 24.04 (the Tauri and Electron builds, the WebKitGTK and
-WebDriver packages, `tauri-driver` and the Xvfb wrapper). Build it once
-(`docker compose build`) and run the `doctor` command above to confirm it on
-your machine.
+## What was tested
+
+The image was built on a Windows 11 machine with Docker Desktop (Docker 29.1.2,
+Linux containers), both without and with `--build-arg WITH_ANDROID=true`. Inside
+the container, `doctor --base tauri --e2e` passed, and the `extension-full`,
+`electron-native` and `tauri-native` example plans were each generated,
+installed, verified and end-to-end tested. The Android layer built, which confirms
+that the Google download address, the SHA-256 of the command-line tools and the
+default platform (`android-36`), build-tools (`36.0.0`) and NDK (`28.2.13676358`)
+exist; and an Android app builds inside it: the `tauri-mobile` plan produced an unsigned APK and an AAB (`GAP_ANALYSIS.md`, "Android in Docker").
+The image cannot build Windows, macOS or iOS packages, and nothing here has run
+under Linux on a machine with an Arm processor.

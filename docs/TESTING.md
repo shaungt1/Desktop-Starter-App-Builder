@@ -19,7 +19,7 @@ The builder's tests run with Bun from the builder root.
 The unit tests cover plan validation (every rejected input has a test), module
 dependency resolution, registry and Cargo composition, the catalog-to-disk
 consistency check, and a generation dry run of every example plan that also
-asserts no `__TOKEN__` placeholder survives. `DSAB_PLANS=electron-full,tauri-full`
+asserts no `__TOKEN__` placeholder survives. `DSAB_PLANS=electron-full,tauri-full,extension-full`
 limits the generation test to named examples, and `DSAB_KEEP=1` keeps the
 generated apps for inspection.
 
@@ -48,23 +48,58 @@ macOS has no WebDriver for its web view; the WebdriverIO Tauri service with its
 embedded driver is the documented alternative there, described in
 `tauri/docs/reference/08-testing-debugging.md`.
 
-## What was verified when this builder was assembled
+## Tests inside a generated browser extension
 
-On Ubuntu 24.04 with Bun 1.4, Node 22, Rust 1.97, Electron 45.0.0 and Tauri
-2.12, the following passed:
+| Command | What it checks |
+| --- | --- |
+| `bun run verify` | `tsc`, Biome, and Vitest unit tests. The WXT Vitest plugin gives the tests an in-memory copy of the browser extension APIs (`fakeBrowser`), so message validation, storage and module logic run in Node; React screens run in jsdom. |
+| `bun run test:e2e` | Builds the extension, then Playwright loads `.output/chrome-mv3` into Chromium (a persistent context with `channel: "chromium"`, which runs headless) and drives the popup, the options page and a content script on a locally answered `https://example.com/` page. |
 
-1. Builder `bun run verify`.
-2. Electron, native profile with every module: `verify` (13 unit tests),
-   packaged end-to-end tests (app, database and background worker) and
-   `bun run make` producing a `.deb` and a `.zip`.
-3. Electron, remote profile (offline fallback) and exported profile (static
-   export served over `app://`): `verify` and packaged end-to-end tests.
-4. Tauri, native profile with every module: `verify` (interface tests and 8 Rust
-   tests), debug build, launch, and WebDriver end-to-end tests (app and database).
-5. Tauri, remote profile: `verify`.
-6. `module add` on an existing Electron app (sign-in, which brought in secure
-   storage automatically) and an existing Tauri app (database).
+The first `test:e2e` run downloads Playwright's Chromium (about 200 MB). Linux CI
+also needs Chromium's system libraries: `bunx playwright install --with-deps chromium`.
+Store review and real sign-in flows cannot be automated.
 
-Windows and macOS builds were not executed in that environment. The
-`ci.yml` workflow in `.github/workflows` runs the generation tests on Linux,
-Windows and macOS runners so those platforms are checked on every change.
+## What was verified, and where
+
+The results below are the runs that were actually executed. Anything not listed
+here was not run, and `GAP_ANALYSIS.md` lists those gaps.
+
+**Windows 11, Git Bash** (Bun 1.4.4, Node.js 22.18, Rust 1.99.1 with the MSVC
+toolchain, Microsoft Edge 156 with a matching `msedgedriver`, `tauri-driver` 2.1.0):
+
+1. Builder `bun run verify`: type check, lint, 95 unit tests (including a
+   generation dry run of every example plan).
+2. All 11 desktop example plans (`electron-native`, `electron-remote`,
+   `electron-exported`, `electron-full`, `electron-nextjs`, `electron-konsta-npm`,
+   `tauri-native`, `tauri-remote`, `tauri-full`, `tauri-nextjs-konsta`,
+   `tauri-mobile`) were generated, installed, verified and end-to-end tested
+   (Electron through Playwright on the packaged app, Tauri through `tauri-driver`
+   and `msedgedriver`). For `tauri-mobile` this is the desktop build only.
+3. Browser extensions: `extension-basic` and `extension-full` were generated,
+   installed, verified (11 and 15 unit tests), built for Chrome and Firefox,
+   zipped for the stores, and end-to-end tested in Chromium (3 tests, and 5 with
+   all modules). An npm variant passed `verify`. `module add` was run on an
+   existing extension (side panel, then page overlay) and its tests passed.
+4. Installers: Electron `make` produced a Squirrel `Setup.exe` (about 155 MB,
+   unsigned); Tauri `build:app` produced an MSI and an NSIS installer (about 2 MB
+   and 1.4 MB, unsigned). The installers were built, not installed or launched.
+5. Scripts: `bootstrap.sh` really installed `tauri-driver` and the matching
+   `msedgedriver`; `bootstrap.ps1` ran dry runs under Windows PowerShell 5.1 and
+   its Edge driver download ran into a temporary folder.
+
+**Linux in Docker** (the image built from `docker/Dockerfile`, Debian 12):
+`doctor --base tauri --e2e` passed, and the `extension-full`, `electron-native`
+and `tauri-native` plans were generated, installed, verified and end-to-end
+tested inside the container. The image was also built with the Android layer
+(`WITH_ANDROID=true`), which checks the SDK download address, its SHA-256 and
+the pinned platform, build-tools and NDK versions; in it, the `tauri-mobile` plan
+passed `verify`, `android:init` and `android:build` (an unsigned universal APK and
+an AAB for all four Android targets). It was not run on an emulator or device.
+
+**Ubuntu 24.04 (an earlier session)**: every desktop example plan was generated,
+installed, verified and end-to-end tested under `xvfb-run`; Electron `make` made a
+`.deb` and a `.zip`, and a Tauri release build made a `.deb`.
+
+**Not run anywhere**: macOS; iOS; an Android emulator or device; installing or launching the built installers;
+code signing and notarization; any GitHub Actions workflow; any store
+submission; Tauri end-to-end tests on macOS.
