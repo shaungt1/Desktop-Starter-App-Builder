@@ -19,6 +19,50 @@ pass `--option y=value` to `module add`.
 user once: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or use Git Bash
 with `bash start.sh`.
 
+## Windows machines
+
+**`doctor` says Node.js is "too old" but you installed a newer one.** A second,
+older Node.js is earlier on the PATH than the one you expect. In Git Bash, `which -a node`
+lists every copy in search order. If Node.js comes from a version manager such as
+nvm-windows, switch with `nvm use 22.17.0` (or newer) instead of installing another copy, and
+open a new terminal. The bootstrap script no longer puts `C:\Program Files\nodejs` ahead of
+your own PATH, and prints the `nvm` commands when nvm-windows is installed.
+
+**The bootstrap reports "winget (App Installer) was not found".** `winget.exe` lives in
+`%LOCALAPPDATA%\Microsoft\WindowsApps`, which some shells do not have on the PATH. The script
+searches that folder; if it still fails, run `winget --version` in PowerShell. If that also
+fails, install "App Installer" from the Microsoft Store.
+
+**`bun` is "command not found" in a terminal opened by an editor or agent.** The Bun installer
+puts `bun.exe` in `~/.bun/bin`, and a terminal that started before the install does not see it.
+Open a new terminal, or run `export PATH="$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"` in Git Bash.
+
+**Tauri end-to-end tests fail at session start with a driver version error.**
+`msedgedriver.exe` must have the same major version as Microsoft Edge, and Edge updates itself.
+Run `bash start.sh doctor --base tauri --e2e` to see both versions, then
+`bash start.sh bootstrap --base tauri --e2e` to download the matching driver.
+
+## Browser extensions
+
+**`bun run test:e2e` cannot find the extension, or no service worker appears.** The tests load
+`.output/chrome-mv3`, which `bun run build` creates; `test:e2e` builds first, so a failed build
+is the usual cause. Read the build output above the test output. Google Chrome and Microsoft Edge
+no longer allow loading an unpacked extension from the command line, which is why the tests use
+the Chromium that Playwright downloads (`channel: "chromium"`), not your installed browser.
+
+**Playwright prints missing shared libraries on Linux.** Install Chromium's system libraries:
+`bunx playwright install --with-deps chromium`.
+
+**Firefox rejects the add-on or warns about `data_collection_permissions`.** Firefox requires
+new add-ons to declare what data they collect and a stable id. `wxt.config.ts` sets both for
+Firefox builds (id `<slug>@<appId>`, data collection "none"); replace the id with one you own and
+change the declaration if the extension sends user data anywhere.
+
+**State disappears or a message gets no answer after a pause.** The browser stops the background
+service worker when it is idle and starts it again for the next event. Variables are lost, and a
+listener registered after an `await` is not there when the worker wakes. Keep state in
+`src/lib/settings.ts` and register listeners synchronously at the top of `defineBackground`.
+
 ## Electron apps
 
 **`bun install` prints "Blocked 1 postinstall".** Bun runs install scripts only

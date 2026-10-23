@@ -24,8 +24,8 @@ uses it and run `bun run verify` inside that app.
 
 ## Adding a module
 
-1. Choose a kebab-case id and create `electron/modules/<id>/` and/or
-   `tauri/modules/<id>/` with the layout in `docs/CONVENTIONS.md`.
+1. Choose a kebab-case id and create `electron/modules/<id>/`, `tauri/modules/<id>/`
+   and/or `extension/modules/<id>/` with the layout in `docs/CONVENTIONS.md`.
 2. Electron: export `mainModule` from `src/main/modules/<id>/index.ts` using
    `defineMainModule({ id, router, setup?, beforeReady?, dispose? })`, and
    optionally `feature` from `src/renderer/features/<id>/index.tsx`.

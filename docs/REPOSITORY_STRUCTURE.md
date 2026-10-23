@@ -12,12 +12,12 @@ choices (`config/catalog.json`) and a **project plan** (a JSON file describing
 one app). It then assembles the app in layers, each layer being a folder of
 ordinary files copied into the destination:
 
-1. the **base template** (`electron/template` or `tauri/template`): a complete, working app;
-2. the **shared interface** (`shared/renderer`): screens, layout and components both bases use;
+1. the **base template** (`electron/template`, `tauri/template` or `extension/template`): a complete, working project;
+2. the **shared interface** (`shared/renderer`): screens, layout and components both desktop bases use (browser extensions have their own);
 3. a **profile overlay** (`electron/profiles/*`, `tauri/profiles/*`) when the window shows hosted or exported content;
 4. a **frontend overlay** (`frontends/nextjs`) when the plan asks for Next.js;
 5. an **interface-kit overlay** (`ui/konsta`) when the plan asks for Konsta UI;
-6. one **module overlay** per enabled module (`electron/modules/*`, `tauri/modules/*`);
+6. one **module overlay** per enabled module (`electron/modules/*`, `tauri/modules/*`, `extension/modules/*`);
 7. the **bundled support files**: reference docs and setup scripts copied into the app's `docs/` and `scripts/`.
 
 After copying, the builder writes small generated "registry" files that import
@@ -75,22 +75,22 @@ The program is TypeScript run directly by Bun. Commands live in
 
 Each file is a complete plan that the tests also generate. They cover every
 profile (`electron-native`, `electron-remote`, `electron-exported`,
-`tauri-native`, `tauri-remote`), every module (`electron-full`, `tauri-full`),
+`tauri-native`, `tauri-remote`, `extension-basic`), every module (`electron-full`, `tauri-full`, `extension-full`),
 both frontends and kits (`electron-nextjs`, `tauri-nextjs-konsta`), npm
 (`electron-konsta-npm`) and mobile targets (`tauri-mobile`). Copy one, change
 the name, slug and identifier, and pass it to `create`.
 
-## `electron/` and `tauri/` — the two bases
+## `electron/`, `tauri/` and `extension/` — the three bases
 
-Both base folders have the same shape, described in the table below.
+All base folders have the same shape, described in the table below (the extension has no `profiles/`, because it has one profile).
 
 | Path | Purpose |
 | --- | --- |
 | `template/` | A complete app with `__TOKEN__` placeholders. Includes its own `README.md`, `AGENTS.md`, tests, `.vscode/` and `.github/workflows/` (CI and release). |
-| `profiles/remote/`, `profiles/exported/` | Files that replace template files for the remote (hosted web app) and, on Electron, exported (bundled static export) profiles. |
+| `profiles/remote/`, `profiles/exported/` (desktop bases only) | Files that replace template files for the remote (hosted web app) and, on Electron, exported (bundled static export) profiles. |
 | `modules/<id>/` | One folder per module, mirroring the app's layout; copied in when the module is enabled. |
 | `docs/AGENT_REFERENCE.md` | Short rules and recipes for agents working on that base. |
-| `docs/reference/` | The full reference set (architecture, configuration, plugins or makers, testing, signing, release pipelines, app stores, Next.js; mobile on Tauri), written from the official documentation with sources and verification dates. Copied into every generated app as `docs/electron/` or `docs/tauri/`. |
+| `docs/reference/` | The full reference set (architecture, configuration, plugins or makers, testing, signing, release pipelines, app stores, Next.js; mobile on Tauri), written from the official documentation with sources and verification dates. Copied into every generated app as `docs/electron/`, `docs/tauri/` or `docs/extension/`. |
 | `prompts/` | Base-specific prompts to paste into an agent. |
 | `README.md` | What the base folder contains. |
 
@@ -100,7 +100,10 @@ start-up, `src/window.rs` windows, `src/commands.rs` core commands,
 registry), `capabilities/` (permissions), `tauri.conf.json` and
 `Cargo.toml`/`Cargo.lock`. Inside `electron/template/`, `src/main/` holds the
 main process, `src/preload/` the preload script and `src/renderer/` the
-interface; `forge.config.ts` configures packaging.
+interface; `forge.config.ts` configures packaging. Inside `extension/template/`,
+`entrypoints/` holds what the browser runs (background worker, popup, options page,
+content script), `src/` the screens, components, typed messaging and settings,
+`wxt.config.ts` the build and manifest, and `tests/` the Vitest and Playwright tests.
 
 ## `frontends/` and `ui/` — interface options
 
@@ -115,7 +118,7 @@ interface; `forge.config.ts` configures packaging.
 What each overlay removes and which packages it adds or removes is recorded in
 `config/catalog.json` under `frontends` and `uiKits`.
 
-## `shared/` — used by both bases
+## `shared/` — used by the desktop bases and the machine check
 
 | Path | Purpose |
 | --- | --- |
@@ -139,7 +142,8 @@ What each overlay removes and which packages it adds or removes is recorded in
 
 | File | Purpose |
 | --- | --- |
-| `CHOOSING_A_BASE.md` | Electron or Tauri, profiles, frontends, kits, targets. |
+| `REQUIREMENTS.md` | The checklist of tools per base with install commands, the install script and the accounts needed to ship. Start here on a new machine. |
+| `CHOOSING_A_BASE.md` | Desktop app or browser extension, Electron or Tauri, profiles, frontends, kits, targets. |
 | `SETUP_RESOURCES.md` | Every tool per operating system with official sources and install commands. Copied into apps. |
 | `UI_KITS.md` | Survey of interface kits, animation and gesture libraries. Copied into apps. |
 | `MANUAL_SETUP.md`, `QUICKSTART.md` (root) | Doing the setup by hand. |
@@ -153,8 +157,8 @@ What each overlay removes and which packages it adds or removes is recorded in
 
 ## `prompts/` and `skills/`
 
-`prompts/` holds instructions a person pastes into an agent (choose a base,
-new app, add a module, release, troubleshoot, maintain the builder).
+`prompts/` holds instructions a person pastes into an agent (prepare a machine,
+choose a base, new app, add a module, release, troubleshoot, maintain the builder).
 `skills/` holds one `SKILL.md` per job for agents that load skills; copy the
 folders to `.claude/skills/` (or your agent's skill folder) to use them.
 
@@ -183,7 +187,7 @@ work in it without the builder.
 | --- | --- |
 | `project-plan.json`, `.desktop-starter.json` | The resolved plan and the builder version and modules used. |
 | `README.md`, `AGENTS.md` | How to run it, how it is organized, rules for agents. |
-| `docs/README.md` | Index of the bundled docs: `SETUP_RESOURCES.md`, `UI_KITS.md`, `electron/` or `tauri/` reference. |
+| `docs/README.md` | Index of the bundled docs: `SETUP_RESOURCES.md`, `UI_KITS.md` (desktop), and the `electron/`, `tauri/` or `extension/` reference. |
 | `scripts/bootstrap.sh`, `scripts/bootstrap.ps1`, `scripts/doctor.mjs` | Install missing tools for this app's base and targets; check the machine (`bun run doctor` / `npm run doctor`). |
 | `.vscode/` | Tasks (doctor, bootstrap, dev, verify, end-to-end tests, installers) and recommended extensions. |
-| `.github/workflows/ci.yml`, `release.yml` | Verification on Windows, macOS and Linux for every pull request; installers uploaded to a draft GitHub release when a `v*` tag is pushed. Signing steps are present and commented until their secrets exist. |
+| `.github/workflows/ci.yml`, `release.yml` | Verification on Windows, macOS and Linux for every pull request; installers (or, for an extension, store ZIP files) uploaded to a draft GitHub release when a `v*` tag is pushed. Signing steps are present and commented until their secrets exist; an extension's store submission runs only when started by hand. |

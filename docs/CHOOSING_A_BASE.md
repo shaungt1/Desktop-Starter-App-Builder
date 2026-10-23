@@ -6,9 +6,14 @@ where the window's content comes from. This document explains what each
 option is, what it is best used for, and the rule that decides between them,
 so that a person or an agent can make and justify the choice.
 
+A third base, the **browser extension**, is not a desktop framework at all: it
+is for products that live inside the browser. It is covered in its own section
+below, and the first question to ask is whether the product needs a window of
+its own at all.
+
 ## Why the base matters
 
-Both bases show a web interface inside a native window, and in both the
+Both desktop bases show a web interface inside a native window, and in both the
 interface is the same React code from `shared/`. They differ in what sits
 underneath. Electron ships a complete Chromium browser and a Node.js runtime
 inside every app; the native side is TypeScript and can use any npm package.
@@ -29,6 +34,36 @@ consequences.
 | Mobile (iOS, Android) from the same code | No | Yes, though younger and with thinner plugin coverage |
 | Packaging tool in this builder | Electron Forge | Tauri CLI bundler |
 | End-to-end testing | Playwright on all three desktop OSes | WebDriver via tauri-driver on Windows and Linux |
+
+The browser extension base is not in this table because it does not compare
+with the desktop bases on these rows; see the next section.
+
+## First question: desktop app or browser extension
+
+Before comparing Electron and Tauri, decide whether the product is a desktop
+application or a browser extension. A **browser extension** is a small program
+that the user adds to Chrome, Edge or Firefox. It can read and change the web
+pages the user visits, add a toolbar button, a side panel or a right-click menu
+item, and react to browsing activity. It runs inside the browser, so it has no
+window of its own, no access to files outside the browser's sandbox, and no
+code running while the browser is closed.
+
+1. **Choose the browser extension** when the product is something the user does
+   *while browsing*: highlighting or clipping page content, adding a panel to a
+   site they already use, blocking or rewriting page content, or a companion to
+   a web product. One codebase ships to the Chrome Web Store, Microsoft Edge
+   Add-ons and Firefox Add-ons. There is no installer and no code-signing
+   certificate, so it is also the quickest base for a proof of concept.
+2. **Choose a desktop app** (Electron or Tauri) when the product needs its own
+   window, files or devices on the user's computer, work that continues when
+   the browser is closed, or a native look and system tray presence.
+
+The browser extension base uses WXT (an extension build framework), React,
+Tailwind CSS and TypeScript, and has one profile. Its modules are `side-panel`,
+`context-menu` and `content-ui`. Its limits are the browser's: an extension
+must request every permission it uses and is reviewed by each store, must
+bundle all the code it runs, and cannot keep state in memory because the
+browser stops its background worker when idle.
 
 ## The short answer: product size
 

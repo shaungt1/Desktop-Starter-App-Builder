@@ -12,7 +12,8 @@
       "description": "Base framework",
       "options": [
         "electron",
-        "tauri"
+        "tauri",
+        "extension"
       ],
       "default": "electron"
     },
@@ -97,7 +98,7 @@
       "problemMatcher": []
     },
     {
-      "label": "Builder: build installers",
+      "label": "Builder: build installers (extensions: store ZIP files)",
       "type": "shell",
       "command": "bun cli/main.ts release ${input:target}",
       "problemMatcher": []

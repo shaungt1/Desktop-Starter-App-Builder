@@ -1,11 +1,11 @@
 # Manual setup
 
-> [`SETUP_RESOURCES.md`](SETUP_RESOURCES.md) is the complete, per-operating-system list of tools with verified install commands and the mobile (Android, iOS) tooling; `scripts/bootstrap.sh` (Windows in Git Bash, macOS, Linux) and `scripts/bootstrap.ps1` automate it. This page summarizes the same setup.
+> [`REQUIREMENTS.md`](REQUIREMENTS.md) is the short checklist of tools per base with install commands, and [`SETUP_RESOURCES.md`](SETUP_RESOURCES.md) is the complete, per-operating-system list of tools with verified install commands and the mobile (Android, iOS) tooling; `scripts/bootstrap.sh` (Windows in Git Bash, macOS, Linux) and `scripts/bootstrap.ps1` automate it. This page summarizes the same setup.
 
 This guide prepares a machine to generate, run and package apps with Desktop
 Starter App Builder, without an AI agent. It is organized by operating system
-and then by base, because Electron and Tauri need different tools. After the
-tools are installed, `bash start.sh doctor --base <electron|tauri>` confirms
+and then by base, because Electron, Tauri and browser extensions need different tools. After the
+tools are installed, `bash start.sh doctor --base <electron|tauri|extension>` confirms
 that nothing is missing.
 
 ## Tools every app needs
@@ -21,6 +21,14 @@ app's repository.
 
 Bun's installation page is https://bun.sh/docs/installation. Open a new
 terminal after installing so `bun` is on the `PATH`.
+
+## Additional tools for browser extensions
+
+A browser extension is built with WXT, which runs on Node.js, so it needs
+**Node.js 22.17 or newer** and nothing else: no compiler, no installer tools and no
+signing certificate. The end-to-end tests download their own Chromium the first
+time they run (about 200 MB). To try the extension by hand you also need Chrome,
+Edge or Firefox.
 
 ## Additional tools for Electron apps
 
@@ -49,7 +57,8 @@ view, so it needs the Rust toolchain and platform build tools.
 For Tauri end-to-end tests also install `tauri-driver`
 (`cargo install tauri-driver --locked`) and, on Linux, `webkit2gtk-driver`
 and `xvfb`; on Windows, an `msedgedriver.exe` matching the installed Edge
-version on the `PATH`.
+version on the `PATH` (`bash start.sh bootstrap --base tauri --e2e` downloads the
+matching one from Microsoft for you).
 
 ## Windows notes
 
@@ -73,11 +82,11 @@ If you prefer to understand or reproduce the generator's work without running
 it, these are the equivalent manual steps. They are also useful when adapting
 an existing app to the same structure.
 
-1. Copy `electron/template` (or `tauri/template`) to the new folder.
-2. Copy `shared/renderer` into `src/renderer` (Electron) or `src` (Tauri).
+1. Copy `electron/template`, `tauri/template` or `extension/template` to the new folder.
+2. Copy `shared/renderer` into `src/renderer` (Electron) or `src` (Tauri). Browser extensions have their own interface in the template and skip this step.
 3. For a non-default profile, copy `electron/profiles/<profile>` (or
    `tauri/profiles/<profile>`) over it, replacing files.
-4. For each module, copy `electron/modules/<id>` (or `tauri/modules/<id>`) into
+4. For each module, copy `electron/modules/<id>`, `tauri/modules/<id>` or `extension/modules/<id>` into
    the app, add the packages listed for it in `docs/MODULES.md` to
    `package.json`, and for Tauri add its crates to `src-tauri/Cargo.toml`.
 5. Edit the registry files described in `docs/ARCHITECTURE.md` to import each
