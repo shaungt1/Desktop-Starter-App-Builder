@@ -175,7 +175,9 @@ have() { command -v "$1" >/dev/null 2>&1; }
 tool_version() {
   local cmd="$1"; shift
   if have "$cmd"; then
-    "$cmd" "$@" 2>/dev/null | extract_version
+    # A tool that is present but broken (for example a rustup proxy before any
+    # toolchain is installed) prints no version; that must not stop the script.
+    "$cmd" "$@" 2>/dev/null | extract_version || true
   fi
 }
 
@@ -667,13 +669,56 @@ check_ios() {
   fi
 }
 
+# Windows: the installed Microsoft Edge version (product version of msedge.exe), or nothing.
+edge_version() {
+  local exe found ps="/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+  [[ -x "$ps" ]] || return 0
+  for exe in 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe' \
+    'C:\Program Files\Microsoft\Edge\Application\msedge.exe'; do
+    found="$("$ps" -NoProfile -Command "if (Test-Path '$exe') { (Get-Item '$exe').VersionInfo.ProductVersion }" 2>/dev/null \
+      | tr -d '\r' | grep -Eo '^[0-9]+(\.[0-9]+)+$' | head -n 1 || true)"
+    if [[ -n "$found" ]]; then
+      printf '%s\n' "$found"
+      return 0
+    fi
+  done
+  return 0
+}
+
+# Windows: Tauri end-to-end tests need msedgedriver.exe whose major version equals Edge's.
+check_msedgedriver() {
+  local edge driver
+  edge="$(edge_version)"
+  driver="$(tool_version msedgedriver --version)"
+  if [[ -z "$edge" ]]; then
+    row "msedgedriver.exe" "${driver:--}" "manual"
+    manual "Microsoft Edge was not found, so the matching msedgedriver.exe cannot be chosen. Install Edge, then re-run."
+  elif [[ -n "$driver" && "${driver%%.*}" == "${edge%%.*}" ]]; then
+    row "msedgedriver.exe (Edge $edge)" "$driver" "ok"
+  else
+    row "msedgedriver.exe (Edge $edge)" "${driver:--}" "download msedgedriver $edge"
+    queue_shown "Download msedgedriver $edge into ~/.cargo/bin" \
+      "curl https://msedgedriver.microsoft.com/$edge/edgedriver_win64.zip, unzip msedgedriver.exe into ~/.cargo/bin" \
+      install_msedgedriver "$edge"
+  fi
+}
+
+# Windows: downloads the msedgedriver that matches the given Edge version from Microsoft.
+install_msedgedriver() {
+  local version="$1" tmp bin="$HOME/.cargo/bin"
+  tmp="$(mktemp -d)"
+  mkdir -p "$bin"
+  curl -fsSL "https://msedgedriver.microsoft.com/$version/edgedriver_win64.zip" -o "$tmp/driver.zip" \
+    || die "could not download msedgedriver $version from msedgedriver.microsoft.com"
+  unzip -o -q "$tmp/driver.zip" msedgedriver.exe -d "$bin" || die "could not unzip msedgedriver.exe"
+  rm -rf "$tmp"
+  say "msedgedriver $("$bin/msedgedriver.exe" --version | head -n 1) installed in $bin"
+}
+
 check_e2e() {
   if want_tauri; then
-    if [[ "$OS" == "windows" ]] && ! have msedgedriver; then
-      row "msedgedriver.exe" "-" "manual"
-      manual "Tauri end-to-end tests on Windows need msedgedriver.exe matching your Microsoft Edge version on PATH. \
-The Tauri docs get it with: cargo install --git https://github.com/chippers/msedgedriver-tool then run msedgedriver-tool \
-and put the downloaded msedgedriver.exe in a folder on PATH."
+    if [[ "$OS" == "windows" ]]; then
+      check_msedgedriver
     fi
     if [[ "$OS" == "macos" ]]; then
       row "tauri-driver" "-" "not used on macOS"
