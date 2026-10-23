@@ -168,6 +168,41 @@ function writeFeatureRegistry(features: string[], file: string): void {
   writeText(file, content);
 }
 
+/**
+ * Writes the extension's generated files: the background-module registry that
+ * entrypoints/background.ts runs, and the permissions the enabled modules need,
+ * which wxt.config.ts merges into the manifest.
+ */
+export function writeExtensionRegistries(catalog: Catalog, modules: string[], appRoot: string): void {
+  const background = modules.filter((id) => implementationFor(catalog, "extension", id)?.backgroundModule);
+  const registry = typescriptFile(
+    [
+      'import type { BackgroundModule } from "./types";',
+      ...background.map((id) => `import { backgroundModule as ${camelCase(id)}Module } from "./${id}/background";`),
+    ],
+    [
+      "/** Background modules started by entrypoints/background.ts, in dependency order. */",
+      arrayStatement(
+        "export const enabledModules: readonly BackgroundModule[] = ",
+        background.map((id) => `${camelCase(id)}Module`),
+      ),
+    ],
+  );
+  writeText(path.join(appRoot, "src/modules/registry.ts"), registry);
+
+  const permissions = new Set<string>();
+  const hostPermissions = new Set<string>();
+  for (const id of modules) {
+    const implementation = implementationFor(catalog, "extension", id);
+    for (const permission of implementation?.permissions ?? []) permissions.add(permission);
+    for (const host of implementation?.hostPermissions ?? []) hostPermissions.add(host);
+  }
+  writeJson(path.join(appRoot, "src/permissions.generated.json"), {
+    permissions: [...permissions].sort(),
+    host_permissions: [...hostPermissions].sort(),
+  });
+}
+
 /** Writes the Tauri Rust module registry, the frontend feature registry and Cargo dependencies. */
 export function writeTauriRegistries(catalog: Catalog, modules: string[], appRoot: string): void {
   const rust = modules
@@ -530,12 +565,13 @@ export function copyBundledFiles(entries: ReadonlyArray<{ from: string; to: stri
 
 /** Writes docs/README.md: where to start in the bundled documentation. */
 export function writeDocsIndex(plan: ProjectPlan, appRoot: string): void {
-  const base = plan.base === "tauri" ? "Tauri 2" : "Electron";
+  const base = plan.base === "tauri" ? "Tauri 2" : plan.base === "extension" ? "browser extension (WXT)" : "Electron";
+  const kind = plan.base === "extension" ? "extension" : "app";
   const run = plan.packageManager === "npm" ? "npm run" : "bun run";
   const lines = [
     "# Documentation for this app",
     "",
-    `This folder holds the reference documentation for building, testing, signing and shipping this ${base} app.`,
+    `This folder holds the reference documentation for building, testing, signing and shipping this ${base} ${kind}.`,
     "It was copied from Desktop Starter App Builder when the app was generated, so it works without the builder.",
     "The files below are listed in the order a new person or AI agent should read them.",
     "",

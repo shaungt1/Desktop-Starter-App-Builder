@@ -1,15 +1,38 @@
 # Desktop Starter App Builder
 
 Desktop Starter App Builder is a reusable generator for desktop applications
-(and, with Tauri, Android and iOS apps). You describe an application in a small
-JSON **project plan** (its name, identifier, framework, interface style and the
-optional **modules** it needs), and the builder fills a new folder with a
-complete, tested, self-contained application: code, tests, setup scripts,
-reference documentation, VS Code tasks and GitHub Actions workflows. A person
+(and, with Tauri, Android and iOS apps) and for browser extensions. You describe
+a project in a small JSON **project plan** (its name, identifier, framework,
+interface style and the optional **modules** it needs), and the builder fills a
+new folder with a complete, tested, self-contained project: code, tests, setup
+scripts, reference documentation, VS Code tasks and GitHub Actions workflows. A person
 can drive it from the command line, and an AI coding agent in VS Code can drive
 it by following [`AGENT_START.md`](AGENT_START.md). The builder never copies
 itself (or its Git history) into the application, so the same checkout produces
 any number of apps.
+
+## Start here (new developer)
+
+Four steps take a new developer, with or without an AI agent, from a fresh clone
+to a running project. Each step names the file that explains it.
+
+1. **Clone this repository and install Bun.** Bun and Git are the only things
+   needed before the builder itself runs ([`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)
+   has the one-line install commands for Windows, macOS and Linux). On Windows,
+   open **Git Bash** and run every `bash start.sh ...` command there.
+2. **Prepare the machine for the kind of project you will build.** Run
+   `bash start.sh doctor --base <electron|tauri|extension>` to see what is
+   missing, then `bash start.sh bootstrap --base <base>` to install it (it shows a
+   plan and asks first; `--dry-run` only looks). An agent can do this for you: paste
+   [`prompts/setup-machine.md`](prompts/setup-machine.md). The full list of tools,
+   versions and accounts is [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
+3. **Create the project** in its own folder, outside this repository, by hand
+   ([`QUICKSTART.md`](QUICKSTART.md)) or with an agent
+   ([`prompts/new-app.md`](prompts/new-app.md), or the base-specific prompts listed in
+   [`prompts/README.md`](prompts/README.md)).
+4. **Open the new folder on its own** and keep working there; it has its own
+   `README.md`, `AGENTS.md`, docs, scripts and Git history, and does not need
+   this repository again.
 
 ## Two ways to use this repository
 
@@ -59,13 +82,13 @@ typical session with an agent in VS Code, opened on this folder, goes like this.
 You can do every step yourself with the commands in
 [`QUICKSTART.md`](QUICKSTART.md); the agent only follows the same commands.
 
-## Electron or Tauri
+## Electron, Tauri or a browser extension
 
-Two **bases** (the underlying desktop frameworks) are supported. In short,
-Electron suits apps that will grow into large, long-lived products, and Tauri
-suits lean, fast apps, proofs of concept and anything that must also run on
-Android or iOS. [`docs/CHOOSING_A_BASE.md`](docs/CHOOSING_A_BASE.md) gives the
-full decision rule.
+Three **bases** (the underlying frameworks) are supported. In short, Electron
+suits apps that will grow into large, long-lived products, Tauri suits lean, fast
+apps, proofs of concept and anything that must also run on Android or iOS, and a
+browser extension suits a product that lives inside Chrome, Edge or Firefox.
+[`docs/CHOOSING_A_BASE.md`](docs/CHOOSING_A_BASE.md) gives the full decision rule.
 
 - **Electron** bundles the Chromium browser engine and Node.js with the app.
   The native side is TypeScript running on Node, so any npm package works, and
@@ -75,21 +98,23 @@ full decision rule.
   Rust core. Installers are small and memory use is low; native code is Rust,
   every capability must be granted explicitly, and the same project can also
   build Android and iOS apps.
+- **Browser extension** (WXT, React, Tailwind CSS) is a Manifest V3 add-on with a
+  popup, an options page, a background service worker and content scripts. One
+  codebase builds for Chrome, Edge and Firefox, and needs no installer and no
+  code-signing certificate. Optional modules add a side panel, a context menu and
+  a page overlay.
 
-## Related builders
+## Related builder
 
-This repository covers desktop applications, and Android and iOS through
-Tauri 2. Two sibling repositories follow the same idea (a reusable kit that
-generates a project somewhere else): **Mobile Starter App Builder**, for
-phone and tablet apps built with Expo (React Native) or Tauri 2, and **Browser
-Extension Starter App Builder**, for browser extensions. At the time of this
-release the mobile builder has its own generators and history, and the
-extension builder is an empty repository with no content yet. They are not
-part of this repository; use the one that matches the product you are building.
+Phone and tablet apps built with Expo (React Native) have their own repository,
+**Mobile Starter App Builder**, which follows the same idea (a reusable kit that
+generates a project somewhere else) and is maintained separately. This
+repository can also build Android and iOS apps, but only through Tauri 2; use the
+mobile builder when the product should be an Expo app.
 
 ## What a generated app contains
 
-Every generated app, on either base, starts with the same foundation, and the
+Every generated desktop app, on either desktop base, starts with the same foundation, and the
 plan chooses the options listed after it.
 
 1. A React + TypeScript interface with Tailwind CSS 4, home and settings
@@ -124,10 +149,12 @@ animation and gesture libraries.
 
 ## Quick start
 
-The builder needs **Bun** 1.3 or newer and **Git**. Electron apps also need
-Node.js 22.17 or newer; Tauri apps need Rust and the operating system's web
-view development files. The bootstrap scripts install whatever is missing after
-showing you a plan and asking; `doctor` only checks.
+The builder needs **Bun** 1.3 or newer and **Git**. Electron apps and browser
+extensions also need Node.js 22.17 or newer; Tauri apps need Rust and the
+operating system's web view development files. [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)
+lists every tool per base with exact install commands. The bootstrap scripts
+install whatever is missing after showing you a plan and asking; `doctor` only
+checks. To have an agent do it, paste [`prompts/setup-machine.md`](prompts/setup-machine.md).
 
 ```bash
 # 1. Prepare the machine. It detects Windows (Git Bash + winget), macOS or Linux,
@@ -197,13 +224,13 @@ folder and file.
 | `cli/` | The builder program (TypeScript on Bun): commands and the composition logic. |
 | `config/` | `catalog.json` (bases, profiles, frontends, interface kits, modules as data) and `sources.json` (pinned upstream projects). |
 | `plans/examples/` | Ready-to-copy project plans for every base, profile, frontend and interface kit. |
-| `electron/`, `tauri/` | Each base's template, profiles, modules, reference docs (`docs/reference/`) and prompts. |
-| `frontends/` | The Next.js frontend overlay for both bases. |
-| `ui/` | The Konsta UI interface-kit overlay for both bases. |
-| `shared/` | Interface components, layout, design tokens, icons and the `doctor.mjs` machine check used by both bases. |
+| `electron/`, `tauri/`, `extension/` | Each base's template, profiles, modules, reference docs (`docs/reference/`) and prompts. |
+| `frontends/` | The Next.js frontend overlay for both desktop bases. |
+| `ui/` | The Konsta UI interface-kit overlay for both desktop bases. |
+| `shared/` | Interface components, layout, design tokens, icons (used by both desktop bases) and the `doctor.mjs` machine check (used by all three bases). |
 | `scripts/` | `bootstrap.sh` (detects Windows in Git Bash, macOS or Linux and installs missing tools; also `bash start.sh bootstrap`), `bootstrap.ps1` (the same for PowerShell users) and the module-docs generator. |
 | `prompts/`, `skills/` | Instructions to paste into an AI agent, and one skill file per job. |
-| `docs/` | Choosing a base, architecture, modules, setup resources, UI kits, testing, release, Docker, troubleshooting. |
+| `docs/` | Requirements, choosing a base, architecture, modules, setup resources, UI kits, testing, release, Docker, troubleshooting. |
 | `docker/`, `compose.yaml` | An optional Linux container with every tool installed, for CI or for building Linux and Android packages without installing toolchains on your machine. |
 | `tests/` | Builder unit tests and the full generation test. |
 

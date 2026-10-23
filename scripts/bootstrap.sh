@@ -19,7 +19,7 @@
 #   scripts/bootstrap.ps1 does the same for people who prefer PowerShell.
 #
 # Usage
-#   bash scripts/bootstrap.sh [--base electron|tauri|all] [--mobile] [--e2e]
+#   bash scripts/bootstrap.sh [--base electron|tauri|extension|all] [--mobile] [--e2e]
 #                             [--yes] [--dry-run] [--help]
 #
 #   --base      Which app base to prepare for (default: all).
@@ -55,6 +55,7 @@ PACKAGE_MANAGER="bun"
 if [[ -f "$ROOT/project-plan.json" ]]; then
   if grep -q '"base": "tauri"' "$ROOT/project-plan.json"; then BASE="tauri"; fi
   if grep -q '"base": "electron"' "$ROOT/project-plan.json"; then BASE="electron"; fi
+  if grep -q '"base": "extension"' "$ROOT/project-plan.json"; then BASE="extension"; fi
   # Only the "targets" array decides mobile ("uiTheme": "ios" is a look, not a target).
   if tr -d ' \n\r\t' < "$ROOT/project-plan.json" | grep -Eq '"targets":\[[^]]*"(android|ios)"'; then MOBILE=1; fi
   if grep -q '"packageManager": "npm"' "$ROOT/project-plan.json"; then PACKAGE_MANAGER="npm"; fi
@@ -70,7 +71,7 @@ usage() {
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --base)
-      [[ $# -ge 2 ]] || { echo "error: --base needs a value (electron, tauri or all)" >&2; exit 2; }
+      [[ $# -ge 2 ]] || { echo "error: --base needs a value (electron, tauri, extension or all)" >&2; exit 2; }
       BASE="$2"
       shift 2
       ;;
@@ -85,12 +86,13 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$BASE" in
-  electron | tauri | all) ;;
-  *) echo "error: --base must be electron, tauri or all" >&2; exit 2 ;;
+  electron | tauri | extension | all) ;;
+  *) echo "error: --base must be electron, tauri, extension or all" >&2; exit 2 ;;
 esac
 
 want_electron() { [[ "$BASE" == "electron" || "$BASE" == "all" ]]; }
 want_tauri() { [[ "$BASE" == "tauri" || "$BASE" == "all" ]]; }
+want_extension() { [[ "$BASE" == "extension" || "$BASE" == "all" ]]; }
 
 # --- Output helpers ----------------------------------------------------------
 
@@ -849,8 +851,10 @@ if [[ "$PACKAGE_MANAGER" == "npm" ]]; then
 else
   check_bun
 fi
-if [[ "$PACKAGE_MANAGER" != "npm" ]] && want_electron; then
+if [[ "$PACKAGE_MANAGER" != "npm" ]] && { want_electron || want_extension; }; then
   check_node
+fi
+if [[ "$PACKAGE_MANAGER" != "npm" ]] && want_electron; then
   check_electron_linux_makers
 fi
 if want_tauri; then
@@ -862,7 +866,7 @@ if [[ $MOBILE -eq 1 ]]; then
     check_android
     check_ios
   else
-    warn "--mobile applies to Tauri only; ignored for --base electron."
+    warn "--mobile applies to Tauri only; ignored for --base $BASE."
   fi
 fi
 [[ $E2E -eq 1 ]] && check_e2e
@@ -951,7 +955,7 @@ run_doctor() {
     say "  bash start.sh doctor --base ${BASE/all/electron}"
     return 0
   fi
-  if [[ "$BASE" == "all" ]]; then bases=(electron tauri); else bases=("$BASE"); fi
+  if [[ "$BASE" == "all" ]]; then bases=(electron tauri extension); else bases=("$BASE"); fi
   for b in "${bases[@]}"; do
     say ""
     say "Running: bun cli/main.ts doctor --base $b"

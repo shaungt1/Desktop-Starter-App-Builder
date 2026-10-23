@@ -18,6 +18,7 @@ The table below lists every skill and when it applies.
 | [`desktop-module-add`](desktop-module-add/SKILL.md) | Add an optional module to an app the builder generated earlier. Use when the user wants sign-in, a database, updates, file access, background work or another catalog module in an existing app. |
 | [`desktop-electron-ipc`](desktop-electron-ipc/SKILL.md) | Add or change a typed IPC procedure in a generated Electron app. Use when interface code needs something from the main process (files, database, OS features, network with credentials). |
 | [`desktop-tauri-command`](desktop-tauri-command/SKILL.md) | Add or change a Rust command or plugin use in a generated Tauri app. Use when interface code needs native work in a Tauri app. |
+| [`desktop-extension`](desktop-extension/SKILL.md) | Change a generated browser extension safely: add a message, setting, permission, content script or entrypoint. Use when the project is a browser extension (base `extension`). |
 | [`desktop-persistence`](desktop-persistence/SKILL.md) | Change what a generated app stores: preferences, database schema or secrets. Use for schema changes, new tables or new stored settings. |
 | [`desktop-auth`](desktop-auth/SKILL.md) | Configure and troubleshoot sign-in (auth-oidc module) with an OpenID Connect provider. Use when setting up the identity provider or when sign-in fails. |
 | [`desktop-release`](desktop-release/SKILL.md) | Prepare and build a release of a generated app. Use when the user asks for installers or a new version. |

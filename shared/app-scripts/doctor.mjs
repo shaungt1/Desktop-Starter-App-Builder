@@ -6,7 +6,7 @@
  * installs them for you.
  *
  * Usage (runs on Node.js 22+ or Bun):
- *   node scripts/doctor.mjs [--base electron|tauri] [--mobile] [--e2e]
+ *   node scripts/doctor.mjs [--base electron|tauri|extension] [--mobile] [--e2e]
  *
  * Inside a generated app the base and mobile targets are read from
  * project-plan.json, so `bun run doctor` / `npm run doctor` needs no options.
@@ -43,8 +43,8 @@ const packageManager = plan?.packageManager ?? "bun";
 const wantAndroid = args.includes("--mobile") || targets.includes("android");
 const wantIos = args.includes("--mobile") || targets.includes("ios");
 const wantE2e = args.includes("--e2e");
-if (base && base !== "electron" && base !== "tauri") {
-  console.error("--base must be electron or tauri");
+if (base && base !== "electron" && base !== "tauri" && base !== "extension") {
+  console.error("--base must be electron, tauri or extension");
   process.exit(2);
 }
 
@@ -87,7 +87,7 @@ const directory = (value) => (value && fs.existsSync(value) ? value : undefined)
 const platform = process.platform;
 
 /**
- * Each check: name, which bases need it ("all", "electron", "tauri"), whether
+ * Each check: name, which bases need it ("all", "electron", "tauri", "extension"), whether
  * it is optional, a probe returning what was found, an optional minimum
  * version, and the fix to print.
  */
@@ -101,7 +101,7 @@ const checks = [
   },
   {
     name: "Node.js",
-    needs: packageManager === "npm" ? ["all"] : ["electron"],
+    needs: packageManager === "npm" ? ["all"] : ["electron", "extension"],
     minimum: "22.17.0",
     probe: () => firstLine(capture("node", ["--version"])),
     fix: "Install Node.js 22.17 or newer (Windows: winget install OpenJS.NodeJS.LTS; macOS: brew install node).",
@@ -186,6 +186,28 @@ if (platform === "win32") {
   );
 }
 
+/** Windows: the installed Microsoft Edge version (product version of msedge.exe), or undefined. */
+function edgeVersion() {
+  const roots = [process.env["ProgramFiles(x86)"], process.env.ProgramFiles].filter(Boolean);
+  for (const root of roots) {
+    const exe = `${root}\\Microsoft\\Edge\\Application\\msedge.exe`;
+    if (!fs.existsSync(exe)) {
+      continue;
+    }
+    const command = `(Get-Item '${exe}').VersionInfo.ProductVersion`;
+    try {
+      const powershell = `${process.env.SystemRoot ?? "C:\\Windows"}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;
+      return execFileSync(powershell, ["-NoProfile", "-Command", command], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim();
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
 if (wantE2e) {
   checks.push({
     name: "tauri-driver (end-to-end tests)",
@@ -193,6 +215,26 @@ if (wantE2e) {
     probe: () => (capture("tauri-driver", ["--help"]) !== undefined ? "installed" : undefined),
     fix: "cargo install tauri-driver --locked",
   });
+  if (platform === "win32") {
+    checks.push({
+      name: "msedgedriver matching Microsoft Edge (end-to-end tests)",
+      needs: ["tauri"],
+      minimum: undefined,
+      probe: () => {
+        const driver = firstLine(capture("msedgedriver", ["--version"]));
+        const edge = edgeVersion();
+        if (!driver) {
+          return undefined;
+        }
+        const driverMajor = driver.match(/(\d+)\./u)?.[1];
+        if (edge && driverMajor !== edge.split(".")[0]) {
+          return undefined;
+        }
+        return `${driver.split(" (")[0]} (Edge ${edge ?? "not found"})`;
+      },
+      fix: "bash scripts/bootstrap.sh --base tauri --e2e downloads the driver that matches your Edge version.",
+    });
+  }
   if (platform === "linux") {
     checks.push({
       name: "WebKitWebDriver and Xvfb (end-to-end tests)",
@@ -280,7 +322,7 @@ for (const check of checks) {
   }
 }
 if (!base) {
-  console.log("Pass --base electron or --base tauri to fail on the tools that base requires.");
+  console.log("Pass --base electron, --base tauri or --base extension to fail on the tools that base requires.");
 }
 if (missing > 0) {
   console.log(

@@ -49,7 +49,7 @@ export interface ProjectPlan {
   uiTheme?: string;
   /** Package manager the generated app's scripts and docs use: "bun" (default) or "npm". */
   packageManager: string;
-  /** Platforms to build for. Always includes "desktop"; Tauri may add "android" and "ios". */
+  /** Platforms to build for. Always includes the base's first target ("desktop", or "browser" for extensions); Tauri may add "android" and "ios". */
   targets: TargetId[];
   modules: string[];
   moduleOptions: Record<string, Record<string, unknown>>;
@@ -158,6 +158,11 @@ export function normalizePlan(input: Record<string, unknown>, catalog: Catalog):
   }
 
   const frontend = choice(input.frontend, "frontend", catalog.frontends, defaultChoice(catalog.frontends));
+  if (baseDefinition.frontends && !baseDefinition.frontends.includes(frontend)) {
+    throw new UserError(
+      `${base} supports the ${baseDefinition.frontends.join(", ")} frontend only (the plan uses "${frontend}").`,
+    );
+  }
   const frontendProfiles = catalog.frontends[frontend]?.profiles;
   if (frontendProfiles && !frontendProfiles.includes(profile)) {
     throw new UserError(
@@ -165,6 +170,11 @@ export function normalizePlan(input: Record<string, unknown>, catalog: Catalog):
     );
   }
   const ui = choice(input.ui, "ui", catalog.uiKits, defaultChoice(catalog.uiKits));
+  if (baseDefinition.uiKits && !baseDefinition.uiKits.includes(ui)) {
+    throw new UserError(
+      `${base} supports the ${baseDefinition.uiKits.join(", ")} interface kit only (the plan uses "${ui}").`,
+    );
+  }
   const themes = catalog.uiKits[ui]?.themes;
   const uiTheme = themes
     ? choice(input.uiTheme, "uiTheme", Object.fromEntries(themes.map((t) => [t, t])), themes[0] ?? "")
@@ -180,14 +190,15 @@ export function normalizePlan(input: Record<string, unknown>, catalog: Catalog):
     ? input.targets.map(String)
     : typeof input.targets === "string"
       ? input.targets.split(",").map((target) => target.trim())
-      : ["desktop"];
+      : [];
   for (const target of rawTargets) {
     if (!TARGET_IDS.includes(target as TargetId) || !baseDefinition.targets.includes(target as TargetId)) {
       throw new UserError(`${base} cannot build for "${target}". Targets: ${baseDefinition.targets.join(", ")}`);
     }
   }
-  const targets = [...new Set<TargetId>(["desktop", ...(rawTargets as TargetId[])])];
-  const mobile = targets.some((target) => target !== "desktop");
+  const primaryTarget = baseDefinition.targets[0] ?? "desktop";
+  const targets = [...new Set<TargetId>([primaryTarget, ...(rawTargets as TargetId[])])];
+  const mobile = targets.some((target) => target === "android" || target === "ios");
 
   const rawModules = Array.isArray(input.modules)
     ? input.modules.map(String)
@@ -240,7 +251,11 @@ export function normalizePlan(input: Record<string, unknown>, catalog: Catalog):
     slug,
     appId,
     scheme,
-    description: text(input.description, "description", `${name} desktop application.`),
+    description: text(
+      input.description,
+      "description",
+      `${name} ${base === "extension" ? "browser extension" : "desktop application"}.`,
+    ),
     author: text(input.author, "author", "Your Name"),
     version,
     base,

@@ -15,6 +15,7 @@ import {
   readProvenance,
   writeAppConfig,
   writeElectronRegistries,
+  writeExtensionRegistries,
   writeProvenance,
   writeTauriRegistries,
 } from "../lib/compose.ts";
@@ -128,6 +129,8 @@ async function addModule(argv: string[]): Promise<void> {
   mergePackageManifest(catalog, base, plan.modules, target);
   if (base === "electron") {
     writeElectronRegistries(catalog, plan.modules, target);
+  } else if (base === "extension") {
+    writeExtensionRegistries(catalog, plan.modules, target);
   } else {
     writeTauriRegistries(catalog, plan.modules, target);
   }

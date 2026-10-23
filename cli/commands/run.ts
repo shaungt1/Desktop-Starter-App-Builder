@@ -50,6 +50,11 @@ export async function releaseCommand(argv: string[]): Promise<void> {
     await runScript(target, "verify");
   }
 
+  if (values.publish && base === "extension") {
+    throw new UserError(
+      "Extensions publish from CI with `wxt submit` using store credentials stored as repository secrets (see docs/extension/07-publishing-and-stores.md). Run release without --publish to build the store ZIP files locally.",
+    );
+  }
   if (values.publish && base === "tauri") {
     throw new UserError(
       "Tauri apps publish from CI with tauri-apps/tauri-action (see docs/RELEASE_AND_SIGNING.md). Run release without --publish to build installers locally.",
@@ -62,8 +67,20 @@ export async function releaseCommand(argv: string[]): Promise<void> {
     }
   }
 
-  const script = values.publish ? "publish" : base === "electron" ? "make" : "build:app";
+  const script = values.publish
+    ? "publish"
+    : base === "electron"
+      ? "make"
+      : base === "extension"
+        ? "zip:all"
+        : "build:app";
   heading(script);
   await runScript(target, script);
-  success(values.publish ? "published" : "installers built (see the app's README for the output folder)");
+  success(
+    values.publish
+      ? "published"
+      : base === "extension"
+        ? "store ZIP files built in .output/ (see the extension's README)"
+        : "installers built (see the app's README for the output folder)",
+  );
 }

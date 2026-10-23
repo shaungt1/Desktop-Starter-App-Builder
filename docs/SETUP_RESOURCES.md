@@ -16,10 +16,11 @@ Verified on 2026-10-22
 
 ## What this page is for
 
-This page lists every tool a computer needs before Desktop Starter App Builder can generate, run and package apps. The builder is a command-line program (a program you run by typing commands in a terminal) that creates desktop apps from a project plan. It can create two kinds of app, called **bases**:
+This page lists every tool a computer needs before Desktop Starter App Builder can generate, run and package apps. The builder is a command-line program (a program you run by typing commands in a terminal) that creates desktop apps from a project plan. It can create three kinds of project, called **bases**:
 
 - An **Electron** app bundles its own copy of the Chromium browser engine and the Node.js JavaScript runtime. It is packaged with **Electron Forge**, a command-line tool that builds installers.
 - A **Tauri** app has a backend written in Rust (a compiled programming language) and draws its interface with the web view (the built-in browser component) that the operating system already provides. Tauri apps can optionally also target Android and iOS phones.
+- A **browser extension** is a small add-on for Chrome, Edge or Firefox, built with the **WXT** framework (an extension build tool that runs on Node.js). It needs no native compiler and no installer.
 
 The page has four parts. It first gives an overview table of the tools. It then gives step-by-step instructions for Windows, macOS and Linux that can be followed from top to bottom. Next it describes the environment variables that mobile builds need. Finally it shows how to check the machine with the builder's `doctor` command and how the two bootstrap scripts automate all of the steps. Every command is shown exactly as it is typed, with the operating system it applies to.
 
@@ -47,7 +48,7 @@ The table below lists each tool, which base needs it, and why. "Both" means both
 | --- | --- | --- | --- |
 | Bun | Both | 1.3 | JavaScript runtime and package manager. It runs the builder (`cli/main.ts`) and installs packages and runs scripts in generated apps. The builder's `package.json` declares `"bun": ">=1.3.0"`. |
 | Git | Both | Any current release | Version control. The builder's `create` command initializes a Git repository in each new app. On Windows it also provides Git Bash for `bash start.sh`. |
-| Node.js | Electron | 22.17 | Electron Forge's command-line tool runs on Node.js. Forge's root `package.json` declares `"node": ">= 22.17.0"` (its CLI package alone declares `>= 22.13.0`). |
+| Node.js | Electron, browser extension | 22.17 | Electron Forge's command-line tool runs on Node.js. Forge's root `package.json` declares `"node": ">= 22.17.0"` (its CLI package alone declares `>= 22.13.0`). |
 | `dpkg` and `fakeroot` | Electron, building Linux `.deb` installers | Any | Forge's deb maker "can only build the deb target on Linux or macOS machines with the `fakeroot` and `dpkg` packages installed". |
 | `rpm` / `rpm-build` | Electron, building Linux `.rpm` installers | Any | Forge's RPM maker "can only build the RPM target on Linux machines with the `rpm` or `rpm-build` packages installed". |
 | Rust, installed through rustup | Tauri | stable 1.90 | Compiles the Tauri backend. rustup is the official installer and version manager for Rust. The official Tauri plugins declare a minimum Rust version of 1.90. |
@@ -65,9 +66,10 @@ The table below lists each tool, which base needs it, and why. "Both" means both
 | `tauri-driver` | E2E, Tauri on Windows and Linux | Latest | Bridges WebDriver test tools to the Tauri app. |
 | `webkit2gtk-driver` (provides `WebKitWebDriver`) | E2E, Tauri on Linux | Same as WebKitGTK | The native WebDriver server for WebKitGTK, which `tauri-driver` drives. |
 | `xvfb` | E2E on Linux without a display | Any | A virtual display, used through `xvfb-run`, so tests run on servers and in containers. |
-| `msedgedriver.exe` | E2E, Tauri on Windows | Must match the installed Edge version | The native WebDriver server for WebView2. |
+| `msedgedriver.exe` | E2E, Tauri on Windows | Must match the installed Edge version | The native WebDriver server for WebView2. The bootstrap scripts download the matching version automatically (see "Automating the steps"). |
+| Chromium for Playwright | E2E, browser extension | Installed by the project | The browser the extension tests load the built extension into. `bun run test:e2e` downloads it (about 200 MB, once) with `playwright install chromium`; no separate step is needed. |
 
-The table shows that a machine for Electron apps needs only Bun, Git and Node.js (plus the Linux packaging tools on Linux), while a machine for Tauri apps needs Bun, Git, Rust and the operating system's native build tools. Mobile and end-to-end tools are only needed when you use those features.
+The table shows that a machine for Electron apps or browser extensions needs only Bun, Git and Node.js (plus the Linux packaging tools on Linux for Electron), while a machine for Tauri apps needs Bun, Git, Rust and the operating system's native build tools. Mobile and end-to-end tools are only needed when you use those features.
 
 ### Java
 
@@ -195,7 +197,7 @@ These steps prepare a Windows machine. The `winget` commands work the same in **
    winget install --id Google.AndroidStudio -e --source winget
    ```
 
-9. **For Tauri end-to-end tests:** install `tauri-driver` and an Edge WebDriver that matches your Edge version. The Tauri docs download the matching driver with a small tool; the download contains `msedgedriver.exe`, which must be on the PATH (or passed to `tauri-driver` with `--native-driver`).
+9. **For Tauri end-to-end tests:** install `tauri-driver` and an Edge WebDriver whose major version matches your Edge version. `bash start.sh bootstrap --base tauri --e2e` does both: it reads Edge's version from `msedge.exe`, downloads `https://msedgedriver.microsoft.com/<Edge version>/edgedriver_win64.zip` (verified to return the matching driver on 2026-10-23) and puts `msedgedriver.exe` next to `tauri-driver` in `~/.cargo/bin`. By hand, the Tauri docs download the matching driver with a small tool; `msedgedriver.exe` must be on the PATH (or passed to `tauri-driver` with `--native-driver`).
 
    ```powershell
    # Windows (PowerShell)
@@ -500,12 +502,14 @@ The `doctor` check looks at the machine without changing anything. It reports ea
 # macOS, Linux, or Git Bash on Windows
 bash start.sh doctor --base electron
 bash start.sh doctor --base tauri
+bash start.sh doctor --base extension
 ```
 
 ```powershell
 # Windows (PowerShell)
 .\start.ps1 doctor --base electron
 .\start.ps1 doctor --base tauri
+.\start.ps1 doctor --base extension
 ```
 
 Inside a generated app, the same check is the app's own `scripts/doctor.mjs`, which reads the base, package manager and targets from `project-plan.json`:
@@ -515,15 +519,15 @@ Inside a generated app, the same check is the app's own `scripts/doctor.mjs`, wh
 bun run doctor     # apps generated for npm: npm run doctor
 ```
 
-Add `--mobile` to also check the Android and iOS tooling (`JAVA_HOME`, `ANDROID_HOME`, `NDK_HOME`, the Rust mobile targets, Xcode and CocoaPods on macOS), and `--e2e` to check the end-to-end test drivers (`tauri-driver`, WebKitWebDriver and Xvfb on Linux). In a generated app with Android or iOS targets the mobile checks run automatically. The check covers Bun (or Node.js for npm apps), Node.js for Electron, Git, `rustc` and `cargo` with their minimum versions, WebKitGTK 4.1 and the `.deb` tools on Linux, the Xcode Command Line Tools on macOS, and WebView2 and the C++ Build Tools on Windows.
+Add `--mobile` to also check the Android and iOS tooling (`JAVA_HOME`, `ANDROID_HOME`, `NDK_HOME`, the Rust mobile targets, Xcode and CocoaPods on macOS), and `--e2e` to check the end-to-end test drivers (`tauri-driver`, `msedgedriver` against the installed Edge version on Windows, WebKitWebDriver and Xvfb on Linux). In a generated app with Android or iOS targets the mobile checks run automatically. The check covers Bun (or Node.js for npm apps), Node.js for Electron and browser extensions, Git, `rustc` and `cargo` with their minimum versions, WebKitGTK 4.1 and the `.deb` tools on Linux, the Xcode Command Line Tools on macOS, and WebView2 and the C++ Build Tools on Windows.
 
 ## Automating the steps: the bootstrap scripts
 
 Two scripts perform the steps on this page automatically. `scripts/bootstrap.sh` detects the machine it runs on and covers Windows (run in Git Bash, the Bash shell installed with Git for Windows; it installs with winget), macOS and Linux; in the builder it is also run as `bash start.sh bootstrap`. `scripts/bootstrap.ps1` does the same for people who prefer Windows PowerShell 5.1 or PowerShell 7. Both accept the same options, which the list below explains.
 
-- `--base electron|tauri|all` chooses which base to prepare for (default `all`).
+- `--base electron|tauri|extension|all` chooses which base to prepare for (default `all`).
 - `--mobile` adds Android tooling, and on macOS also iOS tooling (Tauri only).
-- `--e2e` adds end-to-end test drivers.
+- `--e2e` adds end-to-end test drivers (`tauri-driver`, and on Windows the `msedgedriver` that matches Edge).
 - `--yes` answers every question with yes.
 - `--dry-run` prints the plan and the commands without changing anything.
 
@@ -555,4 +559,4 @@ The following statements on this page could not be checked against a source in t
 5. That Android Studio on Linux is started with `bin/studio.sh` inside the unpacked folder.
 6. The Fedora and Arch package names for the D-Bus headers, `WebKitWebDriver` and Xvfb.
 
-In summary, this page gives a verified tool list and per-system commands for both bases, and the bootstrap scripts apply the same commands automatically while asking before every change outside the package managers.
+In summary, this page gives a verified tool list and per-system commands for all three bases, and the bootstrap scripts apply the same commands automatically while asking before every change outside the package managers.

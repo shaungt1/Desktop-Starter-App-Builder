@@ -48,6 +48,19 @@ describe("create", () => {
         for (const id of plan.modules) {
           expect(registry).toContain(`"./${id}"`);
         }
+      } else if (plan.base === "extension") {
+        const registry = fs.readFileSync(path.join(target, "src/modules/registry.ts"), "utf8");
+        const permissions = JSON.parse(fs.readFileSync(path.join(target, "src/permissions.generated.json"), "utf8"));
+        const catalog = loadCatalog();
+        for (const id of plan.modules) {
+          const implementation = catalog.modules.find((module) => module.id === id)?.implementations.extension;
+          if (implementation?.backgroundModule) {
+            expect(registry).toContain(`"./${id}/background"`);
+          }
+          expect(permissions.permissions).toEqual(expect.arrayContaining(implementation?.permissions ?? []));
+        }
+        expect(files).toContain("wxt.config.ts");
+        expect(files).toContain("entrypoints/background.ts");
       } else {
         const rust = fs.readFileSync(path.join(target, "src-tauri/src/modules/mod.rs"), "utf8");
         expect(rust).toContain("tauri::generate_handler!");

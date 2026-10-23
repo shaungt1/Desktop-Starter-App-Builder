@@ -123,6 +123,56 @@
           "to": "scripts/doctor.mjs"
         }
       ]
+    },
+    "extension": {
+      "title": "Browser extension (WXT)",
+      "summary": "A Manifest V3 browser extension for Chrome, Edge and Firefox (Safari by conversion), built with WXT, React, Tailwind CSS and TypeScript. It has a popup, an options page, a background service worker and a content script, with typed messaging and storage.",
+      "chooseWhen": [
+        "The product lives inside the browser: it reads or changes web pages, adds toolbar or side-panel tools, or reacts to browsing activity",
+        "One codebase must ship to the Chrome Web Store, Microsoft Edge Add-ons and Firefox Add-ons",
+        "A fast proof of concept is wanted: an extension needs no installer, no signing certificate and no operating-system build chain"
+      ],
+      "avoidWhen": [
+        "The product needs a window of its own, files outside the browser sandbox, or work while the browser is closed (build a desktop app)",
+        "The product must be a standalone mobile app (an extension runs inside a browser)"
+      ],
+      "template": "extension/template",
+      "defaultProfile": "extension",
+      "frontends": ["vite"],
+      "uiKits": ["shadcn"],
+      "profiles": {
+        "extension": {
+          "title": "Extension",
+          "summary": "Popup, options page, background service worker and content script, built to one folder per browser."
+        }
+      },
+      "targets": ["browser"],
+      "bundledFiles": [
+        {
+          "from": "extension/docs/reference",
+          "to": "docs/extension"
+        },
+        {
+          "from": "extension/docs/AGENT_REFERENCE.md",
+          "to": "docs/extension/AGENT_REFERENCE.md"
+        },
+        {
+          "from": "docs/SETUP_RESOURCES.md",
+          "to": "docs/SETUP_RESOURCES.md"
+        },
+        {
+          "from": "scripts/bootstrap.sh",
+          "to": "scripts/bootstrap.sh"
+        },
+        {
+          "from": "scripts/bootstrap.ps1",
+          "to": "scripts/bootstrap.ps1"
+        },
+        {
+          "from": "shared/app-scripts/doctor.mjs",
+          "to": "scripts/doctor.mjs"
+        }
+      ]
     }
   },
   "modules": [
@@ -388,6 +438,42 @@
           "dependencies": {
             "@sentry/electron": "^8.3.0"
           }
+        }
+      }
+    },
+    {
+      "id": "side-panel",
+      "title": "Side panel",
+      "category": "interface",
+      "summary": "A React panel that opens beside the web page from the toolbar icon (Chrome and Edge side panel API).",
+      "implementations": {
+        "extension": {
+          "overlay": "extension/modules/side-panel",
+          "permissions": ["sidePanel"]
+        }
+      }
+    },
+    {
+      "id": "context-menu",
+      "title": "Context menu",
+      "category": "interface",
+      "summary": "A right-click menu item that sends the selected text to the extension and opens its result.",
+      "implementations": {
+        "extension": {
+          "overlay": "extension/modules/context-menu",
+          "permissions": ["contextMenus"],
+          "backgroundModule": true
+        }
+      }
+    },
+    {
+      "id": "content-ui",
+      "title": "Page overlay (content UI)",
+      "category": "interface",
+      "summary": "A React panel injected into matching web pages inside a shadow root, so the page's styles cannot break it and its styles cannot leak out.",
+      "implementations": {
+        "extension": {
+          "overlay": "extension/modules/content-ui"
         }
       }
     },

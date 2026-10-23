@@ -15,6 +15,13 @@ describe("normalizePlan", () => {
     expect(plan.modules).toEqual([]);
   });
 
+  test("an extension builds for the browser, not the desktop, and says so in its description", () => {
+    const plan = normalizePlan({ ...base, base: "extension" }, catalog);
+    expect(plan.profile).toBe("extension");
+    expect(plan.targets).toEqual(["browser"]);
+    expect(plan.description).toContain("browser extension");
+  });
+
   test("adds required modules before the modules that need them", () => {
     const plan = normalizePlan(
       {
@@ -37,6 +44,11 @@ describe("normalizePlan", () => {
     [{ modules: ["nope"] }, /Unknown module/u],
     [{ modules: ["auth-oidc"] }, /issuer/u],
     [{ base: "tauri", modules: ["crash-reporting"] }, /no tauri implementation/u],
+    [{ base: "extension", ui: "konsta" }, /extension supports the shadcn interface kit only/u],
+    [{ base: "extension", frontend: "nextjs" }, /extension supports the vite frontend only/u],
+    [{ base: "extension", targets: ["android"] }, /cannot build for "android"/u],
+    [{ base: "extension", modules: ["database"] }, /no extension implementation/u],
+    [{ base: "electron", modules: ["side-panel"] }, /no electron implementation/u],
     [{ theme: { primary: "red; background: url(x)" } }, /theme.primary/u],
   ])("rejects %j", (override, message) => {
     expect(() => normalizePlan({ ...base, ...override }, catalog)).toThrow(message);

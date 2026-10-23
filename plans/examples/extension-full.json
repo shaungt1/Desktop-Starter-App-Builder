@@ -1,0 +1,10 @@
+{
+  "name": "Acme Reader",
+  "slug": "acme-reader",
+  "appId": "com.acme.reader",
+  "description": "A browser extension with a side panel, a context menu and a page overlay.",
+  "author": "Acme Inc.",
+  "base": "extension",
+  "packageManager": "bun",
+  "modules": ["side-panel", "context-menu", "content-ui"]
+}

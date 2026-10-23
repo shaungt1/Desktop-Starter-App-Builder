@@ -24,10 +24,10 @@ The table below names each piece of the system and its role.
 | --- | --- | --- |
 | Project plan | any JSON file, copied into the app as `project-plan.json` | The decisions for one app: identity, base, profile, modules, options, theme. |
 | Catalog | `config/catalog.json` | Every base, profile and module as data: template folder, overlays, packages, crates, commands, requirements, conflicts, options, manual steps. |
-| Base template | `electron/template`, `tauri/template` | The core app for a base, with `__TOKEN__` placeholders for plan values. |
-| Shared interface | `shared/renderer` | Components, styles and design tokens copied into both bases. |
+| Base template | `electron/template`, `tauri/template`, `extension/template` | The core app for a base, with `__TOKEN__` placeholders for plan values. |
+| Shared interface | `shared/renderer` | Components, styles and design tokens copied into both desktop bases. The extension base has its own small interface. |
 | Profile overlay | `electron/profiles/<id>`, `tauri/profiles/<id>` | Files that replace template files for a non-default profile. |
-| Module overlay | `electron/modules/<id>`, `tauri/modules/<id>` | Files a module adds. Never overwrites existing files. |
+| Module overlay | `electron/modules/<id>`, `tauri/modules/<id>`, `extension/modules/<id>` | Files a module adds. Never overwrites existing files. |
 | Builder program | `cli/` | Validates plans, composes apps, writes registries, runs app scripts. |
 | Provenance | `.desktop-starter.json` in each app | Builder version and commit, creation time, base, profile, enabled modules and the full plan. |
 
@@ -90,6 +90,17 @@ purely additive change.
   `generate_handler!` list from the catalog's `commands` entries.
 - `src/features/registry.ts`, the same panel list as on Electron.
 
+**The browser extension** uses one registry and one generated data file:
+
+- `src/modules/registry.ts` lists each module's `backgroundModule` object. The
+  background service worker (`entrypoints/background.ts`) calls each module's
+  `setup()` synchronously at start-up, so the browser can wake the worker for
+  the listeners the module registered.
+- `src/permissions.generated.json` collects the browser permissions and host
+  permissions the enabled modules declare; `wxt.config.ts` merges it into the
+  manifest. Entrypoints a module adds (a side panel page, a content script) need
+  no registration, because WXT builds every file in `entrypoints/`.
+
 ## Module contract
 
 A module is a folder whose layout mirrors the generated app. The catalog
@@ -104,6 +115,7 @@ describes it with these fields:
 | `cargo` (Tauri) | Crates added to `Cargo.toml`; features are merged into an existing crate line. |
 | `rustModule`, `rustSetup`, `commands` (Tauri) | The Rust file name, whether it exposes `setup`, and its command function names. |
 | `tauriConf` (Tauri) | Object deep-merged into `tauri.conf.json`. |
+| `permissions`, `hostPermissions`, `backgroundModule` (extension) | Browser permissions merged into the manifest, and whether the folder has `src/modules/<id>/background.ts` exporting `backgroundModule`. |
 | `requires`, `conflicts`, `options`, `env`, `manualSteps` | Dependencies between modules, plan options, environment variables and steps a person must do. |
 
 A test (`tests/unit/catalog.test.ts`) checks that every catalog entry matches
@@ -132,6 +144,18 @@ In `setup` it registers the URL scheme for development, creates the main window
 for the chosen profile and runs module start-up. Commands return `AppResult`,
 which the interface receives as a rejected promise with a readable message.
 Capabilities in `src-tauri/capabilities/` grant only what each module uses.
+
+## Runtime architecture of a generated browser extension
+
+A Manifest V3 extension has no long-running process. The browser starts the
+background service worker (`entrypoints/background.ts`) to deliver an event and
+stops it when idle, so state lives in browser storage (`src/lib/settings.ts`),
+not in variables. The popup, options page and side panel are ordinary web pages
+served from the extension's own origin; content scripts run inside web pages in
+an isolated JavaScript world. These parts talk through typed messages
+(`src/lib/messaging.ts`), validated with Zod on receipt. WXT assembles
+`manifest.json` from `wxt.config.ts` and the files in `entrypoints/`, and builds
+one output folder per browser (`.output/chrome-mv3`, `.output/firefox-mv2`).
 
 ## What was deliberately left out
 

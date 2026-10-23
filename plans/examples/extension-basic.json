@@ -1,0 +1,9 @@
+{
+  "name": "Acme Clipper",
+  "slug": "acme-clipper",
+  "appId": "com.acme.clipper",
+  "description": "A small browser extension with a popup, an options page and a content script.",
+  "author": "Acme Inc.",
+  "base": "extension",
+  "modules": []
+}

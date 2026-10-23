@@ -55,20 +55,44 @@ apps need were missing. The table below lists those gaps and their resolution.
 | Signing, pipelines and stores were summaries | Tauri `11-signing.md`, `12-pipelines-ci.md`, `13-distribution-stores.md`; Electron `electron/docs/reference/` (makers, signing, publishing and updates, app stores, Next.js, testing). Windows signing in `forge.config.ts` now reads its certificate from the environment. |
 | Docker purpose unclear, no Android | `docs/DOCKER.md` explains when to use it; the image can include the Android SDK and NDK. |
 
-## Gaps found on the first Windows run
+## Gaps found by the first Windows and Docker runs
 
-The first run on a Windows 11 machine (Git Bash) found two defects in the
-Windows branch of `scripts/bootstrap.sh`, both fixed. The table lists them.
+The first runs on a Windows 11 machine (Git Bash, then Windows PowerShell 5.1)
+and the first build of the Docker image found the defects in the table below.
+All are fixed in this release.
 
 | Gap | Resolution |
 | --- | --- |
 | At startup the bootstrap put `C:\Program Files\nodejs` ahead of the user's own PATH, so an older system Node.js hid the version the user's shell (here nvm-windows) actually runs. The bootstrap reported 22.11.0 while `doctor` reported 22.14.0. | Startup now appends the Windows tool folders, so what the shell already resolves wins; after an install step they are prepended so the new tool wins. |
 | The bootstrap did not look in `%LOCALAPPDATA%\Microsoft\WindowsApps`, where App Installer places `winget.exe`, and reported winget as missing on a machine that has it. | That folder is now on the bootstrap's Windows search list. |
 | On a machine where nvm-windows manages Node.js, the bootstrap queued `winget install OpenJS.NodeJS.LTS`, which would install a second Node.js beside the managed one. | When `NVM_HOME` is set or `nvm` is on PATH, the bootstrap prints the `nvm install` and `nvm use` commands as a manual step instead. |
+| The bootstrap exited with status 1 and no output when a tool existed but failed (a rustup proxy in `~/.cargo/bin` before any toolchain is installed), because `set -e` and `pipefail` ended the script inside the version probe. | Version probes tolerate a failing command; the tool reads as not installed. |
+| `msedgedriver.exe` was a manual step, and nothing compared its version with Edge's. A mismatch fails only as an opaque session error in the Tauri end-to-end tests. | `doctor --e2e` compares the two versions; both bootstrap scripts read Edge's version from `msedge.exe` and download the matching driver from `msedgedriver.microsoft.com`. |
+| `bootstrap.ps1` had never run on Windows PowerShell 5.1 (it was unavailable earlier). A warning written as `Write-Warning 'a' + $Base + 'b'` passed the `+` signs as extra arguments. | Fixed with a parenthesised expression; dry runs of three bases and the driver download now run under 5.1. |
+| The Docker image could never be built earlier. Once built, every `docker run` hung: the entrypoint used `xvfb-run`, which waits for a signal that never reaches it when it is the container's first process. | The entrypoint starts Xvfb itself, waits for its socket, and runs the command in a D-Bus session. |
+| The builder's `bun test tests/unit` is a substring filter and would also run test files inside templates that sit under a `tests/unit` folder. | The test scripts use `./tests/unit` and `./tests/generation`. |
+| The builder's CI used `actions/checkout@v4` and `actions/setup-node@v4` while generated projects use v7. | Updated to v7 (not yet run on GitHub). |
 
-The PowerShell bootstrap rebuilds PATH from the registry rather than prepending
-fixed folders, so the first defect does not apply to it directly; this was
-read from the code, not run, and is **UNVERIFIED**.
+## Android in Docker
+
+The `tauri-mobile` example (desktop plus Android and iOS targets, `konsta` look,
+`database` module) was generated inside the image built with
+`WITH_ANDROID=true`. `doctor --base tauri --mobile` passed (JDK, `ANDROID_HOME`,
+`NDK_HOME`, the Rust Android targets); `verify` passed; `android:init` generated
+the Android project; and `android:build` compiled the Rust core for all four
+Android targets (aarch64, armv7, i686, x86_64) and produced an unsigned universal
+APK and an AAB. This is the first time the `#[cfg(desktop)]` split compiled for a
+mobile target. Gradle printed deprecation warnings that come from the Android
+project Tauri generates. **Not run**: starting the app in an emulator or on a
+device (`android:dev`), signing the APK, and anything on iOS.
+
+## Gaps closed by the browser extension base
+
+The earlier hand-off listed the extension builder as a separate, empty
+repository. The extension base now lives here: `extension/` holds the template,
+three modules, a nine-page reference set, agent prompts and a skill, and the
+catalog, plan validation, `module add`, `release`, `doctor` and both bootstrap
+scripts support it. See `README.md` and `extension/README.md`.
 
 ## Open items
 
@@ -76,38 +100,45 @@ The following items remain open. Each needs a decision or an account that only
 the app's owner can provide, or a platform this release could not test on.
 
 1. **Code-signing credentials** for Windows and macOS, and Tauri update keys.
-   The hooks are in place (`docs/RELEASE_AND_SIGNING.md`); the certificates are not.
-2. **Windows and macOS execution.** Generation, verification, end-to-end tests
-   and Linux installers were run on Linux. The CI workflow runs the same on
-   Windows and macOS runners; its first run is the first real check there.
-3. **The Docker image** could not be built where this release was assembled
-   (no registry access, no access to Google's Android downloads). Its desktop
-   steps were exercised individually; the Android layer was not; see
-   `docs/DOCKER.md`.
-9. **Android and iOS builds were not run.** The Android SDK, NDK and Rust
-   mobile targets could not be downloaded where this release was assembled, and
-   iOS needs a Mac. The desktop build of the `tauri-mobile` example passes all
-   tests, which proves the desktop side of the `#[cfg(desktop)]` split; the
-   mobile side is unproven until `android:init` and `android:build` run on a
-   machine with the SDK. Only the `database` module is marked mobile-capable.
-10. **The bootstrap scripts' real installs** were not executed (only dry runs,
-    `bash -n`, shellcheck and the PowerShell parser); the first run on each
-    operating system is the first real check. Windows PowerShell 5.1 itself
-    was not available.
-11. **The GitHub Actions workflows in generated apps** have not run on GitHub.
-    Their action versions were checked against each action's published tags.
-12. **The Tauri remote profile's end-to-end test** checks that the window opens
-    on the hosted URL. Where the hosted site is unreachable (as in the
-    environment this release was tested in), the web view reports no URL and
-    the test only proves the window opened.
-4. **Tauri end-to-end tests on macOS** need the WebdriverIO Tauri service's
+   The hooks are in place (`docs/RELEASE_AND_SIGNING.md`); the certificates are
+   not. The Windows installers built during testing are unsigned, and were
+   neither installed nor launched.
+2. **macOS has not been used at all**, and neither has iOS. Generation,
+   verification, end-to-end tests and installers have run on Windows and on
+   Linux (Ubuntu and, in Docker, Debian). The builder's CI workflow runs the
+   generation on macOS runners; its first run is the first real check there.
+3. **GitHub Actions has not run any workflow.** This covers the builder's
+   `ci.yml` and the `ci.yml` and `release.yml` of generated projects, including
+   the extension's store-ZIP release workflow. Their action versions were
+   checked against each action's published tags on 2026-10-23.
+4. **No store submission has ever been made.** The extension's `wxt submit`
+   flow, the Chrome Web Store API v2 credentials and the Firefox and Edge APIs
+   are documented (`extension/docs/reference/07-publishing-and-stores.md`) but
+   untested; every statement there that could not be confirmed is marked
+   UNVERIFIED. Registration fees were not stated on the pages opened.
+5. **Android and iOS are only partly tested.** The Android build of the
+   `tauri-mobile` example compiles and packages in Docker (see "Android in
+   Docker"), but it has not been run on an emulator or device, and iOS needs a
+   Mac and has never been tried. Only the `database` module is marked
+   mobile-capable. Phone and tablet apps built with Expo belong to the separate
+   Mobile Starter App Builder.
+6. **The Tauri remote profile's end-to-end test** checks that the window opens
+   on the hosted URL. Where the hosted site is unreachable, the web view reports
+   no URL and the test only proves the window opened.
+7. **Tauri end-to-end tests on macOS** need the WebdriverIO Tauri service's
    embedded driver instead of `tauri-driver`; not set up here.
-5. **Prisma** is documented as a recipe (`database-prisma`) rather than generated,
-   because it adds code generation and a native module.
-6. **Peer-to-peer transport and OS sync-provider folders** are documented choices
-   (`peer-to-peer`), not generated code.
-7. **The mobile and browser-extension generators** (Mobile Starter App Builder,
-   Extension Starter App Builder) are separate repositories and are not part of
-   this one.
-8. **Crash reporting on Tauri** is not provided; the community `sentry-tauri`
-   plugin is the documented starting point.
+8. **Prisma** is documented as a recipe (`database-prisma`) rather than
+   generated, because it adds code generation and a native module.
+9. **Peer-to-peer transport and OS sync-provider folders** are documented
+   choices (`peer-to-peer`), not generated code.
+10. **Crash reporting on Tauri and in extensions** is not provided; the
+    community `sentry-tauri` plugin is the documented starting point for Tauri.
+11. **Extension limits worth knowing.** Firefox builds as Manifest V2 under
+    WXT's default (decide deliberately before shipping, see
+    `extension/docs/reference/06-browsers-and-cross-browser.md`); Safari is
+    documented only (it needs a Mac and an Apple account); Tailwind `rem` units
+    inside a page overlay follow the host page's root font size, and WXT's
+    PostCSS fix is not applied.
+12. **Konsta UI** panels of modules still use shadcn components inside Konsta
+    screens, and Konsta's brand color is not set from the plan's theme.
+13. **Other interface kits** in `docs/UI_KITS.md` are documented only.

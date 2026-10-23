@@ -20,6 +20,7 @@ import {
   writeAppConfig,
   writeDocsIndex,
   writeElectronRegistries,
+  writeExtensionRegistries,
   writeProvenance,
   writeTauriRegistries,
 } from "../lib/compose.ts";
@@ -84,8 +85,11 @@ export async function createApp(targetArg: string, plan: ProjectPlan, options: {
   if (templateReport.skipped.length > 0) {
     info(`kept your existing: ${templateReport.skipped.join(", ")}`);
   }
-  copyTree(path.join(SHARED_DIR, "renderer"), path.join(target, base.rendererDir), "skip-existing");
-  info(`shared interface -> ${base.rendererDir}`);
+  const rendererDir = base.rendererDir ?? "";
+  if (base.rendererDir) {
+    copyTree(path.join(SHARED_DIR, "renderer"), path.join(target, base.rendererDir), "skip-existing");
+    info(`shared interface -> ${base.rendererDir}`);
+  }
 
   const profile = base.profiles[plan.profile];
   if (profile?.overlay) {
@@ -95,12 +99,12 @@ export async function createApp(targetArg: string, plan: ProjectPlan, options: {
 
   const frontend = catalog.frontends[plan.frontend]?.implementations?.[plan.base];
   if (frontend) {
-    applyVariant(frontend, target, base.rendererDir);
+    applyVariant(frontend, target, rendererDir);
     info(`frontend: ${plan.frontend}`);
   }
   const uiKit = catalog.uiKits[plan.ui]?.implementations?.[plan.base];
   if (uiKit) {
-    applyVariant(uiKit, target, base.rendererDir);
+    applyVariant(uiKit, target, rendererDir);
     info(`interface kit: ${plan.ui}${plan.uiTheme ? ` (${plan.uiTheme})` : ""}`);
   }
 
@@ -117,6 +121,8 @@ export async function createApp(targetArg: string, plan: ProjectPlan, options: {
   mergePackageManifest(catalog, plan.base, plan.modules, target);
   if (plan.base === "electron") {
     writeElectronRegistries(catalog, plan.modules, target);
+  } else if (plan.base === "extension") {
+    writeExtensionRegistries(catalog, plan.modules, target);
   } else {
     writeTauriRegistries(catalog, plan.modules, target);
   }
@@ -206,7 +212,7 @@ export async function newCommand(argv: string[]): Promise<void> {
   const target = positionals[0];
   if (!target) {
     throw new UserError(
-      "Usage: new TARGET --name N --base electron|tauri [--frontend vite|nextjs] [...] [--install] [--verify]",
+      "Usage: new TARGET --name N --base electron|tauri|extension [--frontend vite|nextjs] [...] [--install] [--verify]",
       2,
     );
   }

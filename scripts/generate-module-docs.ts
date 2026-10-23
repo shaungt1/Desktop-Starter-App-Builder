@@ -64,6 +64,9 @@ export function renderModuleDocs(): string {
       const parts = [
         npm.length ? `npm: ${npm.map((name) => `\`${name}\``).join(", ")}` : "no extra npm packages",
         crates.length ? `crates: ${crates.map((name) => `\`${name}\``).join(", ")}` : undefined,
+        implementation.permissions?.length
+          ? `browser permissions: ${implementation.permissions.map((name) => `\`${name}\``).join(", ")}`
+          : undefined,
         implementation.commands?.length
           ? `commands: ${implementation.commands.map((name) => `\`${name}\``).join(", ")}`
           : undefined,

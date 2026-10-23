@@ -1,6 +1,6 @@
 # Quick start
 
-This page takes you from a fresh checkout to a running desktop app by hand,
+This page takes you from a fresh checkout to a running desktop app or browser extension by hand,
 without an AI agent. Each step names the command and what to expect. Run the
 commands from the builder's root folder in Bash (macOS, Linux, Git Bash or WSL
 on Windows, the recommended shell); in PowerShell, replace `bash start.sh` with `.\start.ps1`.
@@ -16,9 +16,11 @@ reasoning is in [`docs/CHOOSING_A_BASE.md`](docs/CHOOSING_A_BASE.md).
 | The app must also run on Android or iOS | **Tauri** (targets `android` and `ios`) |
 | A large product that will keep growing, with a big team, many integrations, or Node.js libraries and native Node modules | **Electron** |
 | Identical rendering on every operating system matters more than size | **Electron** |
+| The product lives inside the browser: it changes or reads web pages, or adds a toolbar button, side panel or right-click action | **Browser extension** (`--base extension`) |
 | You are unsure | Start with **Tauri** for a prototype, and read `docs/CHOOSING_A_BASE.md` before committing to a larger build |
 
-This is a non-binding recommendation; either base can build most apps.
+This is a non-binding recommendation; either desktop base can build most desktop apps. To have an agent do the
+whole thing, use the prompts in [`prompts/`](prompts/) (start with `setup-machine.md`).
 
 ## 1. Prepare and check the machine
 
@@ -41,14 +43,15 @@ Then check the result. `doctor` never installs anything:
 
 ```bash
 bun install
-bash start.sh doctor --base electron
 bash start.sh doctor --base tauri
+bash start.sh doctor --base extension
 ```
 
-Each line reads `ok`, `missing` or `too old` with the exact fix. Electron needs
-Bun, Node.js 22.17+ and Git. Tauri needs Bun, Git, Rust 1.90+ and the platform
-pieces listed in [`docs/SETUP_RESOURCES.md`](docs/SETUP_RESOURCES.md), which
-also gives every manual installation step per operating system.
+Each line reads `ok`, `missing` or `too old` with the exact fix. Electron and a
+browser extension need Bun, Node.js 22.17+ and Git. Tauri needs Bun, Git, Rust 1.90+
+and the platform pieces listed in [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)
+(short list with install commands) and [`docs/SETUP_RESOURCES.md`](docs/SETUP_RESOURCES.md)
+(every manual installation step per operating system).
 
 ## 2. Choose a base, profile and interface
 
@@ -56,7 +59,8 @@ Run `bash start.sh list` to see the decision rule. In short: choose
 **Electron** when the native side needs Node libraries, a local database,
 background processes or identical rendering everywhere; choose **Tauri** when
 small installers matter and the native side is light or you will write it in
-Rust. Then choose what the window shows: the bundled interface (`native`), a
+Rust; choose a **browser extension** when the product lives inside the browser.
+For a desktop app, choose what the window shows: the bundled interface (`native`), a
 web app you already host (`remote`), or, on Electron, a static web export
 bundled for offline use (`exported`). For the native profile, choose the
 frontend (`vite` or `nextjs`) and the interface kit (`shadcn`, or `konsta` with
@@ -118,17 +122,19 @@ bun run dev
 ```
 
 Electron opens the window with hot reload. Tauri compiles the Rust core first
-(the first build takes longest), then opens the window.
+(the first build takes longest), then opens the window. A browser extension
+builds into `.output/chrome-mv3-dev` and rebuilds when you save a file; load that folder once as an
+unpacked extension in `chrome://extensions` (Developer mode, Load unpacked).
 
 ## 6. Test end to end and build installers
 
 From the app folder:
 
 ```bash
-bun run test:e2e      # Linux without a display: xvfb-run -a bun run test:e2e
+bun run test:e2e      # Linux without a display: xvfb-run -a bun run test:e2e (not needed for extensions)
 ```
 
-Then, from the builder:
+Then, from the builder (for an extension this builds the store ZIP files):
 
 ```bash
 bash start.sh release ../acme-notes
